@@ -27,6 +27,7 @@ type Volunteer = {
   assignedEvents: string[];
   status: 'active' | 'inactive';
   profilePicture?: string;
+  positions?: { [eventId: string]: string }; // Map of eventId to position
 };
 
 type PendingVolunteer = {
@@ -38,6 +39,7 @@ type PendingVolunteer = {
   status: 'pending' | 'approved' | 'rejected';
   timestamp: number;
   profilePicture?: string;
+  position: string;
 };
 
 export default function ManageVolunteersScreen() {
@@ -158,9 +160,16 @@ export default function ManageVolunteersScreen() {
         <Text style={styles.eventsTitle}>Assigned Events:</Text>
         {item.assignedEvents.length > 0 ? (
           item.assignedEvents.map(eventId => (
-            <Text key={eventId} style={styles.eventItem}>
-              • {getEventTitle(eventId)}
-            </Text>
+            <View key={eventId} style={styles.eventItemContainer}>
+              <Text style={styles.eventItem}>
+                • {getEventTitle(eventId)}
+              </Text>
+              {item.positions?.[eventId] && (
+                <Text style={styles.positionText}>
+                  Position: {item.positions[eventId]}
+                </Text>
+              )}
+            </View>
           ))
         ) : (
           <Text style={styles.noEventsText}>No events assigned</Text>
@@ -239,34 +248,44 @@ export default function ManageVolunteersScreen() {
       const existingVolunteer = volunteers.find(v => v.email === pendingVolunteer.volunteerEmail);
       
       if (existingVolunteer) {
-        // Update existing volunteer's assigned events
+        // Update existing volunteer's assigned events and positions
         const updatedVolunteers = volunteers.map(v => 
           v.id === existingVolunteer.id 
-            ? { ...v, assignedEvents: [...v.assignedEvents, pendingVolunteer.eventId] }
+            ? { 
+                ...v, 
+                assignedEvents: [...v.assignedEvents, pendingVolunteer.eventId],
+                positions: {
+                  ...v.positions,
+                  [pendingVolunteer.eventId]: pendingVolunteer.position
+                }
+              }
             : v
         );
         await AsyncStorage.setItem('volunteers', JSON.stringify(updatedVolunteers));
         setVolunteers(updatedVolunteers);
       } else {
-        // Add new volunteer
+        // Create new volunteer with position
         const newVolunteer: Volunteer = {
           id: Date.now().toString(),
           name: pendingVolunteer.volunteerName,
           email: pendingVolunteer.volunteerEmail,
-          phone: '',
+          phone: '', // You might want to get this from user data
           assignedEvents: [pendingVolunteer.eventId],
           status: 'active',
-          profilePicture: profilePicture,
+          profilePicture,
+          positions: {
+            [pendingVolunteer.eventId]: pendingVolunteer.position
+          }
         };
         const updatedVolunteers = [...volunteers, newVolunteer];
         await AsyncStorage.setItem('volunteers', JSON.stringify(updatedVolunteers));
         setVolunteers(updatedVolunteers);
       }
 
-      Alert.alert('Success', 'Volunteer has been approved and assigned to the event.');
+      Alert.alert('Success', 'Volunteer has been approved!');
     } catch (error) {
       console.error('Error approving volunteer:', error);
-      Alert.alert('Error', 'Failed to approve volunteer. Please try again.');
+      Alert.alert('Error', 'Failed to approve volunteer');
     }
   };
 
@@ -324,6 +343,7 @@ export default function ManageVolunteersScreen() {
                       <Text style={styles.volunteerName}>{volunteer.volunteerName}</Text>
                       <Text style={styles.volunteerEmail}>{volunteer.volunteerEmail}</Text>
                       <Text style={styles.eventTitle}>Event: {volunteer.eventTitle}</Text>
+                      <Text style={styles.positionText}>Position: {volunteer.position}</Text>
                       <Text style={styles.timestamp}>
                         Requested: {new Date(volunteer.timestamp).toLocaleString()}
                       </Text>
@@ -407,10 +427,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
   },
+  eventItemContainer: {
+    marginBottom: 8,
+  },
   eventItem: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
   },
   noEventsText: {
     color: '#666',
@@ -452,6 +474,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#62A0A5',
     marginBottom: 5,
+  },
+  positionText: {
+    color: '#62A0A5',
+    fontSize: 14,
+    marginLeft: 20,
+    marginTop: 2,
   },
   timestamp: {
     fontSize: 12,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert, Modal, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventCard from '../components/EventCard';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ type Event = {
   description: string;
   location: string;
   coverPhoto?: string;
+  volunteerCategories: string[];
 };
 
 type PendingVolunteer = {
@@ -24,6 +25,7 @@ type PendingVolunteer = {
   volunteerEmail: string;
   status: 'pending' | 'approved' | 'rejected';
   timestamp: number;
+  position: string;
 };
 
 type Volunteer = {
@@ -41,6 +43,8 @@ export default function VolunteerDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [showPositionModal, setShowPositionModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const loadData = async () => {
     try {
@@ -155,51 +159,85 @@ export default function VolunteerDashboard() {
       return;
     }
 
-    // Show confirmation dialog
-    Alert.alert(
-      'Volunteer Registration',
-      `Would you like to volunteer for "${event.title}"?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, I want to volunteer',
-          onPress: async () => {
-            try {
-              // Get existing pending volunteers
-              const pendingVolunteersStr = await AsyncStorage.getItem('pendingVolunteers');
-              let pendingVolunteers: PendingVolunteer[] = pendingVolunteersStr 
-                ? JSON.parse(pendingVolunteersStr) 
-                : [];
+    setSelectedEvent(event);
+    setShowPositionModal(true);
+  };
 
-              // Create new volunteer request
-              const newVolunteer: PendingVolunteer = {
-                id: Date.now().toString(),
-                eventId: event.id,
-                eventTitle: event.title,
-                volunteerName: `${user.firstName} ${user.lastName}`,
-                volunteerEmail: user.email,
-                status: 'pending',
-                timestamp: Date.now(),
-              };
+  const handlePositionSelect = async (position: string) => {
+    if (!selectedEvent || !user) return;
 
-              // Add to pending volunteers
-              pendingVolunteers.push(newVolunteer);
-              await AsyncStorage.setItem('pendingVolunteers', JSON.stringify(pendingVolunteers));
+    try {
+      // Get existing pending volunteers
+      const pendingVolunteersStr = await AsyncStorage.getItem('pendingVolunteers');
+      let pendingVolunteers: PendingVolunteer[] = pendingVolunteersStr 
+        ? JSON.parse(pendingVolunteersStr) 
+        : [];
 
-              Alert.alert(
-                'Success', 
-                'Your volunteer request has been submitted for approval. The admin will review your request.'
-              );
-            } catch (error) {
-              console.error('Error submitting volunteer request:', error);
-              Alert.alert('Error', 'Failed to submit volunteer request. Please try again.');
-            }
-          },
-        },
-      ]
+      // Create new volunteer request
+      const newVolunteer: PendingVolunteer = {
+        id: Date.now().toString(),
+        eventId: selectedEvent.id,
+        eventTitle: selectedEvent.title,
+        volunteerName: `${user.firstName} ${user.lastName}`,
+        volunteerEmail: user.email,
+        status: 'pending',
+        timestamp: Date.now(),
+        position: position,
+      };
+
+      // Add to pending volunteers
+      pendingVolunteers.push(newVolunteer);
+      await AsyncStorage.setItem('pendingVolunteers', JSON.stringify(pendingVolunteers));
+
+      Alert.alert(
+        'Success', 
+        `Your volunteer request for ${position} has been submitted for approval. The admin will review your request.`
+      );
+    } catch (error) {
+      console.error('Error submitting volunteer request:', error);
+      Alert.alert('Error', 'Failed to submit volunteer request. Please try again.');
+    } finally {
+      setShowPositionModal(false);
+      setSelectedEvent(null);
+    }
+  };
+
+  const renderPositionModal = () => {
+    if (!selectedEvent) return null;
+
+    return (
+      <Modal
+        visible={showPositionModal}
+        transparent
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Volunteer Position</Text>
+            <Text style={styles.modalSubtitle}>for {selectedEvent.title}</Text>
+            <ScrollView style={styles.positionsList}>
+              {selectedEvent.volunteerCategories.map((position) => (
+                <TouchableOpacity
+                  key={position}
+                  style={styles.positionItem}
+                  onPress={() => handlePositionSelect(position)}
+                >
+                  <Text style={styles.positionItemText}>{position}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowPositionModal(false);
+                setSelectedEvent(null);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -224,6 +262,7 @@ export default function VolunteerDashboard() {
                   time={item.time}
                   description={item.description}
                   location={item.location}
+                  volunteerCategories={item.volunteerCategories}
                   onPress={() => handleEventPress(item)}
                 />
               </TouchableOpacity>
@@ -245,6 +284,7 @@ export default function VolunteerDashboard() {
             <Text style={styles.emptyText}>No events available.</Text>
           }
         />
+        {renderPositionModal()}
       </View>
     </SafeAreaView>
   );
@@ -272,5 +312,52 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 16,
     marginTop: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  positionsList: {
+    maxHeight: 300,
+  },
+  positionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  positionItemText: {
+    fontSize: 16,
+  },
+  cancelButton: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

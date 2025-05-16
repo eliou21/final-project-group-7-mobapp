@@ -11,12 +11,27 @@ import {
   SafeAreaView,
   Image,
   Platform,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+
+const VOLUNTEER_CATEGORIES = [
+  'Logistics & Planning',
+  'External Affairs/Outreach',
+  'Secretary/Admin Support',
+  'Program & Activities',
+  'Publicity and Promotion',
+  'Finance & Budgeting',
+  'Documentation & Media',
+  'Safety & Security',
+  'Hospitality & Accomodation',
+  'Technical Support/IT',
+];
 
 type Event = {
   id: string;
@@ -26,6 +41,7 @@ type Event = {
   description: string;
   location: string;
   coverPhoto?: string;
+  volunteerCategories: string[];
 };
 
 export default function ManageEventsScreen() {
@@ -39,6 +55,8 @@ export default function ManageEventsScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -60,6 +78,7 @@ export default function ManageEventsScreen() {
     setLocation('');
     setCoverPhoto(undefined);
     setEditingId(null);
+    setSelectedCategories([]);
   };
 
   const handleAddOrUpdateEvent = async () => {
@@ -71,7 +90,7 @@ export default function ManageEventsScreen() {
     if (editingId) {
       // Update
       const updated = events.map((e) =>
-        e.id === editingId ? { ...e, title, date, time, description, location, coverPhoto } : e
+        e.id === editingId ? { ...e, title, date, time, description, location, coverPhoto, volunteerCategories: selectedCategories } : e
       );
       await saveEvents(updated);
       Alert.alert('Success', 'Event updated!');
@@ -85,6 +104,7 @@ export default function ManageEventsScreen() {
         description,
         location,
         coverPhoto,
+        volunteerCategories: selectedCategories,
       };
       await saveEvents([...events, newEvent]);
       Alert.alert('System Notification', 'A new event has been posted!');
@@ -100,6 +120,7 @@ export default function ManageEventsScreen() {
     setLocation(event.location);
     setCoverPhoto(event.coverPhoto);
     setEditingId(event.id);
+    setSelectedCategories(event.volunteerCategories || []);
   };
 
   const handleDelete = (id: string) => {
@@ -201,6 +222,14 @@ export default function ManageEventsScreen() {
       <Text>Time: {item.time}</Text>
       <Text>Location: {item.location}</Text>
       <Text>{item.description}</Text>
+      {item.volunteerCategories && item.volunteerCategories.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.categoriesTitle}>Volunteer Categories:</Text>
+          {item.volunteerCategories.map((category, index) => (
+            <Text key={index} style={styles.categoryText}>• {category}</Text>
+          ))}
+        </View>
+      )}
       <View style={styles.row}>
         <Button title="Edit" onPress={() => handleEdit(item)} />
         <Button title="Delete" color="red" onPress={() => handleDelete(item.id)} />
@@ -210,7 +239,7 @@ export default function ManageEventsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView style={styles.container}>
         <Text style={styles.title}>Manage Events</Text>
         <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage}>
           {coverPhoto ? (
@@ -235,39 +264,53 @@ export default function ManageEventsScreen() {
             <Text style={{ color: time ? '#000' : '#888', marginLeft: 28 }}>{time ? `Time: ${time}` : 'Select Time'}</Text>
           </TouchableOpacity>
         </View>
-        {Platform.OS === 'ios' && (
-          <>
-            <Modal visible={showDatePicker} transparent animationType="slide">
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  <DateTimePicker
-                    value={date ? new Date(date) : new Date()}
-                    mode="date"
-                    display="spinner"
-                    onChange={handleDateChange}
-                    minimumDate={new Date()}
-                  />
-                  <Button title="Done" onPress={() => setShowDatePicker(false)} />
-                </View>
-              </View>
-            </Modal>
-
-            <Modal visible={showTimePicker} transparent animationType="slide">
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  <DateTimePicker
-                    value={time ? new Date(`1970-01-01T${time}:00`) : new Date()}
-                    mode="time"
-                    display="spinner"
-                    onChange={handleTimeChange}
-                    minimumDate={date && new Date(date).toDateString() === new Date().toDateString() ? new Date() : new Date('1970-01-01T00:00:00')}
-                  />
-                  <Button title="Done" onPress={() => setShowTimePicker(false)} />
-                </View>
-              </View>
-            </Modal>
-          </>
-        )}
+        <TouchableOpacity 
+          style={styles.categoryPickerButton} 
+          onPress={() => setShowCategoryPicker(true)}
+        >
+          <Text style={styles.categoryPickerButtonText}>
+            {selectedCategories.length > 0 
+              ? `${selectedCategories.length} Categories Selected` 
+              : 'Select Volunteer Categories'}
+          </Text>
+        </TouchableOpacity>
+        <Modal
+          visible={showCategoryPicker}
+          transparent
+          animationType="slide"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Volunteer Categories</Text>
+              <ScrollView style={styles.pickerContainer}>
+                {VOLUNTEER_CATEGORIES.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.categoryItem,
+                      selectedCategories.includes(category) && styles.selectedCategory
+                    ]}
+                    onPress={() => {
+                      if (selectedCategories.includes(category)) {
+                        setSelectedCategories(selectedCategories.filter(c => c !== category));
+                      } else {
+                        setSelectedCategories([...selectedCategories, category]);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.categoryItemText,
+                      selectedCategories.includes(category) && styles.selectedCategoryText
+                    ]}>
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Button title="Done" onPress={() => setShowCategoryPicker(false)} />
+            </View>
+          </View>
+        </Modal>
         <TextInput
           style={styles.input}
           placeholder="Location"
@@ -291,7 +334,7 @@ export default function ManageEventsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ marginTop: 20 }}
         />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -384,5 +427,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 300,
     width: '100%',
+  },
+  categoryPickerButton: {
+    borderWidth: 1,
+    borderColor: '#aaa',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  categoryPickerButtonText: {
+    color: '#62A0A5',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#fff',
+  },
+  pickerContainer: {
+    maxHeight: 300,
+    width: '100%',
+  },
+  categoryItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  selectedCategory: {
+    backgroundColor: '#62A0A5',
+  },
+  categoryItemText: {
+    color: '#fff',
+  },
+  selectedCategoryText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  categoriesContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  categoriesTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  categoryText: {
+    marginLeft: 10,
+    marginBottom: 3,
   },
 });
