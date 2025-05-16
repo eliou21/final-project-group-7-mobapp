@@ -6,7 +6,7 @@ import SignupScreen from '../screens/SignUpScreen';
 import AdminDashboard from '../screens/AdminDashboard';
 import ManageEventsScreen from '../screens/ManageEventsScreen';
 import ManageVolunteersScreen from '../screens/ManageVolunteersScreens';
-import NotificationsScreen from '../screens/NotificationsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import VolunteerDashboard from '../screens/VolunteerDashboard';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -47,9 +47,6 @@ function AdminTabs({ navigation }: any) {
         title: 'Volunteers',
         tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
       }} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{
-        tabBarIcon: ({ color, size }) => <Ionicons name="notifications" color={color} size={size} />,
-      }} />
       <Tab.Screen name="Exit" component={WelcomeScreen} options={{
         tabBarButton: (props) => (
           <ExitTabButton navigation={navigation} />
@@ -69,8 +66,8 @@ function VolunteerTabs({ navigation }: any) {
         tabBarIcon: ({ color, size }) => <Ionicons name="bookmark" color={color} size={size} />,
         title: 'Saved Events',
       }} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{
-        tabBarIcon: ({ color, size }) => <Ionicons name="notifications" color={color} size={size} />,
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{
+        tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
       }} />
       <Tab.Screen name="Exit" component={WelcomeScreen} options={{
         tabBarButton: (props) => (
