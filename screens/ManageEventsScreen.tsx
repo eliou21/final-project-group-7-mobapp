@@ -110,6 +110,14 @@ export default function ManageEventsScreen() {
         onPress: async () => {
           const filtered = events.filter((e) => e.id !== id);
           await saveEvents(filtered);
+          
+          // Remove from saved events
+          const savedEvents = await AsyncStorage.getItem('savedEvents');
+          if (savedEvents) {
+            const parsedSavedEvents = JSON.parse(savedEvents);
+            const updatedSavedEvents = parsedSavedEvents.filter((e: Event) => e.id !== id);
+            await AsyncStorage.setItem('savedEvents', JSON.stringify(updatedSavedEvents));
+          }
         },
       },
     ]);
@@ -147,13 +155,15 @@ export default function ManageEventsScreen() {
   };
 
   const handleDatePress = () => {
+    const currentDate = new Date();
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
-        value: date ? new Date(date) : new Date(),
+        value: date ? new Date(date) : currentDate,
         mode: 'date',
         is24Hour: true,
         onChange: handleDateChange,
         display: 'default',
+        minimumDate: currentDate,
       });
     } else {
       setShowDatePicker(true);
@@ -162,13 +172,18 @@ export default function ManageEventsScreen() {
   };
 
   const handleTimePress = () => {
+    const currentDate = new Date();
+    const selectedDate = date ? new Date(date) : currentDate;
+    const isToday = selectedDate.toDateString() === currentDate.toDateString();
+    
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
-        value: time ? new Date(`1970-01-01T${time}:00`) : new Date(),
+        value: time ? new Date(`1970-01-01T${time}:00`) : currentDate,
         mode: 'time',
         is24Hour: true,
         onChange: handleTimeChange,
         display: 'default',
+        minimumDate: isToday ? currentDate : new Date('1970-01-01T00:00:00'),
       });
     } else {
       setShowTimePicker(true);
@@ -230,6 +245,7 @@ export default function ManageEventsScreen() {
                     mode="date"
                     display="spinner"
                     onChange={handleDateChange}
+                    minimumDate={new Date()}
                   />
                   <Button title="Done" onPress={() => setShowDatePicker(false)} />
                 </View>
@@ -244,6 +260,7 @@ export default function ManageEventsScreen() {
                     mode="time"
                     display="spinner"
                     onChange={handleTimeChange}
+                    minimumDate={date && new Date(date).toDateString() === new Date().toDateString() ? new Date() : new Date('1970-01-01T00:00:00')}
                   />
                   <Button title="Done" onPress={() => setShowTimePicker(false)} />
                 </View>
