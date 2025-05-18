@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EventCard from '../components/EventCard';
+import UnifiedEventCard from '../components/UnifiedEventCard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import HeaderBanner from '../components/HeaderBanner';
+import { useNavigation } from '@react-navigation/native';
 
 type Event = {
   id: string;
@@ -14,6 +15,11 @@ type Event = {
   description: string;
   location: string;
   coverPhoto?: string;
+  volunteerCategories?: string[];
+  canceled?: boolean;
+  tags?: string[];
+  currentVolunteers?: number;
+  maxVolunteers?: number;
 };
 
 type PendingVolunteer = {
@@ -41,11 +47,42 @@ export default function SavedEventsScreen() {
   const [savedEvents, setSavedEvents] = useState<Event[]>([]);
   const { user } = useAuth();
   const [registeredEventIds, setRegisteredEventIds] = useState<string[]>([]);
+  const navigation = useNavigation();
 
   const loadSavedEvents = async () => {
     try {
       const stored = await AsyncStorage.getItem('savedEvents');
       let parsedEvents: Event[] = stored ? JSON.parse(stored) : [];
+      
+      // Update events with current data from events storage
+      const storedEvents = await AsyncStorage.getItem('events');
+      if (storedEvents) {
+        const currentEvents = JSON.parse(storedEvents);
+        parsedEvents = parsedEvents.map(savedEvent => {
+          const currentEvent = currentEvents.find((e: Event) => e.id === savedEvent.id);
+          if (currentEvent) {
+            return {
+              ...savedEvent,
+              ...currentEvent,
+              // Preserve saved event data that might not be in current event
+              id: savedEvent.id,
+              title: savedEvent.title,
+              date: savedEvent.date,
+              time: savedEvent.time,
+              description: savedEvent.description,
+              location: savedEvent.location,
+              coverPhoto: savedEvent.coverPhoto,
+              tags: savedEvent.tags || [],
+              volunteerCategories: savedEvent.volunteerCategories || [],
+              currentVolunteers: currentEvent.currentVolunteers,
+              maxVolunteers: currentEvent.maxVolunteers,
+              canceled: currentEvent.canceled
+            };
+          }
+          return savedEvent;
+        });
+      }
+
       // Remove events that are already registered (pending or approved)
       if (user) {
         const [storedPendingVolunteers, storedVolunteers] = await Promise.all([
@@ -69,9 +106,14 @@ export default function SavedEventsScreen() {
     }
   };
 
+  // Add focus listener to reload saved events when screen is focused
   useEffect(() => {
-    loadSavedEvents();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadSavedEvents();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   // Add real-time updates
   useEffect(() => {
@@ -208,7 +250,7 @@ export default function SavedEventsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={styles.safeArea}>
       <HeaderBanner />
       <View style={styles.container}>
         <Text style={styles.title}>Saved Events</Text>
@@ -217,14 +259,28 @@ export default function SavedEventsScreen() {
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.eventContainer}>
-              <EventCard 
-                title={item.title} 
-                date={item.date} 
-                description={item.description}
-                time={item.time}
-                location={item.location}
+              <TouchableOpacity 
+                style={styles.eventCardContainer}
                 onPress={() => handleVolunteer(item)}
-              />
+                activeOpacity={0.7}
+                disabled={item.canceled}
+              >
+                <UnifiedEventCard
+                  title={item.title}
+                  date={item.date}
+                  time={item.time}
+                  location={item.location}
+                  description={item.description}
+                  tags={item.tags}
+                  coverPhoto={item.coverPhoto}
+                  volunteerCount={item.currentVolunteers}
+                  maxVolunteers={item.maxVolunteers}
+                  showVolunteerCount={true}
+                  canceled={item.canceled}
+                  showFullSlot={!item.canceled && (item.currentVolunteers ?? 0) >= (item.maxVolunteers ?? 0)}
+                  style={styles.eventCard}
+                />
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.removeButton}
                 onPress={() => handleRemoveEvent(item.id)}
@@ -233,9 +289,12 @@ export default function SavedEventsScreen() {
               </TouchableOpacity>
             </View>
           )}
-          contentContainerStyle={{ marginTop: 20 }}
+          contentContainerStyle={styles.eventsList}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No saved events.</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="bookmark-outline" size={60} color="#ccc" />
+              <Text style={styles.emptyText}>No saved events</Text>
+            </View>
           }
         />
       </View>
@@ -244,12 +303,30 @@ export default function SavedEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: '#FFEAB8' 
+  },
+  container: { 
+    flex: 1, 
+    padding: 20 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginBottom: 10, 
+    textAlign: 'center',
+    color: '#7F4701'
+  },
   eventContainer: {
     position: 'relative',
-    marginBottom: 10,
+    marginBottom: 15,
+  },
+  eventCardContainer: {
+    width: '100%',
+  },
+  eventCard: {
+    width: '100%',
   },
   removeButton: {
     position: 'absolute',
@@ -258,11 +335,22 @@ const styles = StyleSheet.create({
     zIndex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: 12,
+    padding: 4,
+  },
+  eventsList: {
+    paddingTop: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 40,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888',
+    color: '#666',
     fontSize: 16,
-    marginTop: 20,
+    marginTop: 10,
+    fontStyle: 'italic',
   },
 }); 

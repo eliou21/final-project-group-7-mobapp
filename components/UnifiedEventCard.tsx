@@ -21,6 +21,7 @@ interface UnifiedEventCardProps {
   cancelDisabled?: boolean;
   showFullSlot?: boolean;
   style?: any;
+  saveButton?: React.ReactNode;
 }
 
 const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
@@ -42,6 +43,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
   cancelDisabled = false,
   showFullSlot = false,
   style,
+  saveButton,
 }) => {
   return (
     <View style={[styles.eventCard, style]}>
@@ -74,6 +76,11 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
                 <Text style={styles.fullSlotBadgePhotoText}>Full Slot</Text>
               </View>
             )}
+            {saveButton && (
+              <View style={styles.saveButtonContainer}>
+                {saveButton}
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.placeholderImage}>
@@ -96,6 +103,11 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
             {showFullSlot && !canceled && (
               <View style={styles.fullSlotBadgePhoto}>
                 <Text style={styles.fullSlotBadgePhotoText}>Full Slot</Text>
+              </View>
+            )}
+            {saveButton && (
+              <View style={styles.saveButtonContainer}>
+                {saveButton}
               </View>
             )}
           </View>
@@ -331,6 +343,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 0.2,
+  },
+  saveButtonContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 3,
   },
 });
 

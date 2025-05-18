@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, SafeAreaView, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -303,49 +303,59 @@ export default function MyRegisteredEventsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <HeaderBanner />
+      <View style={styles.bannerHeader}>
+        <Text style={styles.bannerTitle}>My Registered Events</Text>
+        <Text style={styles.bannerSubtitle}>View and manage your event registrations</Text>
+      </View>
+      <View style={styles.bannerDivider} />
       <View style={styles.container}>
-        <Text style={styles.title}>My Registered Events</Text>
         <View style={styles.sortRow}>
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'all' && styles.sortButtonActive]}
             onPress={() => setSortStatus('all')}
           >
-            <Text style={styles.sortButtonText}>All</Text>
+            <Text style={[styles.sortButtonText, sortStatus === 'all' && styles.sortButtonTextActive]}>All</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'active' && styles.sortButtonActive]}
             onPress={() => setSortStatus('active')}
           >
-            <Text style={styles.sortButtonText}>Active</Text>
+            <Text style={[styles.sortButtonText, sortStatus === 'active' && styles.sortButtonTextActive]}>Active</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'pending' && styles.sortButtonActive]}
             onPress={() => setSortStatus('pending')}
           >
-            <Text style={styles.sortButtonText}>Pending</Text>
+            <Text style={[styles.sortButtonText, sortStatus === 'pending' && styles.sortButtonTextActive]}>Pending</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'removed' && styles.sortButtonActive]}
             onPress={() => setSortStatus('removed')}
           >
-            <Text style={styles.sortButtonText}>Removed</Text>
+            <Text style={[styles.sortButtonText, sortStatus === 'removed' && styles.sortButtonTextActive]}>Removed</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'cancelled' && styles.sortButtonActive]}
             onPress={() => setSortStatus('cancelled')}
           >
-            <Text style={styles.sortButtonText}>Cancelled</Text>
+            <Text style={[styles.sortButtonText, sortStatus === 'cancelled' && styles.sortButtonTextActive]}>Cancelled</Text>
           </TouchableOpacity>
         </View>
         {getDisplayEvents().length === 0 ? (
-          <Text style={styles.emptyText}>You have no {sortStatus === 'all' ? '' : sortStatus} events.</Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={60} color="#ccc" />
+            <Text style={styles.emptyText}>You have no {sortStatus === 'all' ? '' : sortStatus} events.</Text>
+          </View>
         ) : (
           <FlatList
             data={getDisplayEvents()}
             keyExtractor={(item) => item.id}
             renderItem={({ item }: { item: DisplayEvent }) => (
               <View style={styles.card}>
-                <Text style={styles.eventTitle}>{item.title}</Text>
+                {item.coverPhoto && (
+                  <Image source={{ uri: item.coverPhoto }} style={styles.coverPhoto} />
+                )}
+                <Text style={styles.cardTitle}>{item.title}</Text>
                 {item.tags && item.tags.length > 0 && (
                   <View style={styles.tagsRow}>
                     {item.tags.map((tag: string) => (
@@ -355,18 +365,40 @@ export default function MyRegisteredEventsScreen() {
                     ))}
                   </View>
                 )}
-                {item.date ? <Text>Date: {item.date}</Text> : null}
-                {item.time ? <Text>Time: {item.time}</Text> : null}
-                {item.location ? <Text>Location: {item.location}</Text> : null}
-                {item.description ? <Text>Description: {item.description}</Text> : null}
+                <View style={styles.infoRow}>
+                  <Ionicons name="calendar-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+                  <Text style={styles.infoText}>{item.date}</Text>
+                </View>
+                {item.time && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="time-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+                    <Text style={styles.infoText}>{item.time}</Text>
+                  </View>
+                )}
+                {item.location && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="location-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+                    <Text style={styles.infoText}>{item.location}</Text>
+                  </View>
+                )}
+                <View style={styles.infoRow}>
+                  <Ionicons name="briefcase-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+                  <Text style={styles.infoText}>Category: {item.category}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Ionicons name="information-circle-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+                  <Text style={styles.infoText}>Status: {item.status === 'active' ? 'Approved' : item.status === 'removed' ? 'Removed' : item.status === 'cancelled' ? 'Cancelled' : 'Pending'}</Text>
+                </View>
                 {item.status === 'removed' && (
-                  <Text style={{ color: '#ff6b6b', fontWeight: 'bold', fontStyle: 'italic', marginTop: 8 }}>Removed from event by admin</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>Removed from event by admin</Text>
+                  </View>
                 )}
                 {item.status === 'cancelled' && (
-                  <Text style={{ color: '#888', fontWeight: 'bold', fontStyle: 'italic', marginTop: 8 }}>Event Cancelled</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>Event Cancelled</Text>
+                  </View>
                 )}
-                <Text style={styles.positionText}>Category: {item.category}</Text>
-                <Text style={styles.statusText}>Status: {item.status === 'active' ? 'Approved' : item.status === 'removed' ? 'Removed' : item.status === 'cancelled' ? 'Cancelled' : 'Pending'}</Text>
                 {item.status === 'active' && (
                   <View style={styles.row}>
                     <TouchableOpacity style={styles.editButton} onPress={() => handleEditCategory(item)}>
@@ -382,7 +414,6 @@ export default function MyRegisteredEventsScreen() {
                 {item.status === 'pending' && (
                   <View style={styles.row}>
                     <TouchableOpacity style={styles.editButton} onPress={() => {
-                      // Find the event in allEvents to get all categories
                       const eventObj = allEvents.find(e => e.id === item.id);
                       setEditPending({
                         pendingId: item.pendingId,
@@ -401,7 +432,7 @@ export default function MyRegisteredEventsScreen() {
                 )}
               </View>
             )}
-            contentContainerStyle={{ marginTop: 20 }}
+            contentContainerStyle={styles.listContent}
           />
         )}
         {renderEditModal()}
@@ -411,115 +442,237 @@ export default function MyRegisteredEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  card: {
-    backgroundColor: '#EFEFEF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: '#FFEAB8' 
   },
-  eventTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
-  positionText: { marginVertical: 8, color: '#62A0A5', fontWeight: '500' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: { 
+    flex: 1, 
+    padding: 20 
+  },
+  bannerHeader: {
     backgroundColor: '#62A0A5',
-    padding: 10,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  removeButton: {
-    flexDirection: 'row',
+    paddingTop: 14,
+    paddingBottom: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    backgroundColor: '#ff6b6b',
-    padding: 10,
-    borderRadius: 8,
+    borderRadius: 25,
+    marginBottom: 12,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    maxWidth: 420,
+    width: '90%',
+    alignSelf: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
-  emptyText: { textAlign: 'center', color: '#888', fontSize: 16, marginTop: 20 },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingBottom: 0,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    alignItems: 'center',
-    minHeight: 200,
-    width: '100%',
-  },
-  modalTitle: {
-    fontSize: 18,
+  bannerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    color: '#FFF1C7',
+    marginBottom: 2,
+    textAlign: 'center',
   },
-  categoryItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  bannerSubtitle: {
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.92,
+  },
+  bannerDivider: {
+    height: 3,
+    backgroundColor: '#62A0A5',
+    borderRadius: 2,
     width: '100%',
+    alignSelf: 'center',
   },
-  categoryText: { fontSize: 16 },
-  cancelButton: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '100%',
-  },
-  cancelButtonText: { color: '#666', fontSize: 16, fontWeight: '500' },
   sortRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 10,
-    gap: 10,
+    marginBottom: 20,
+    gap: 8,
   },
   sortButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#eee',
-    marginHorizontal: 4,
+    backgroundColor: '#FFF1C7',
+    borderWidth: 2,
+    borderColor: '#7F4701',
   },
   sortButtonActive: {
     backgroundColor: '#62A0A5',
+    borderColor: '#62A0A5',
   },
   sortButtonText: {
-    color: '#333',
+    color: '#7F4701',
     fontWeight: 'bold',
   },
-  statusText: {
-    marginTop: 5,
-    color: '#888',
+  sortButtonTextActive: {
+    color: '#FFF1C7',
+  },
+  card: {
+    backgroundColor: '#7BB1B7',
+    borderRadius: 25,
+    borderColor: '#7F4701',
+    borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 3,
+    padding: 22,
+    marginBottom: 24,
+  },
+  coverPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  infoIcon: {
+    marginRight: 4,
+  },
+  infoText: {
+    color: '#FFF1C7',
+    fontSize: 15,
+    flex: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#62A0A5',
+    padding: 12,
+    borderRadius: 12,
+    flex: 1,
+    justifyContent: 'center',
+    gap: 8,
+  },
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff6b6b',
+    padding: 12,
+    borderRadius: 12,
+    flex: 1,
+    justifyContent: 'center',
+    gap: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#7F4701',
+    fontSize: 18,
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-    marginBottom: 2,
+    gap: 8,
+    marginBottom: 12,
   },
   tagBadgeSmall: {
     backgroundColor: '#62A0A5',
     borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginRight: 4,
-    marginBottom: 4,
+    paddingVertical: 4,
   },
   tagTextSmall: {
-    color: '#fff',
+    color: '#FFF1C7',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusBadge: {
+    backgroundColor: '#FFF1C7',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  statusBadgeText: {
+    color: '#7F4701',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#7BB1B7',
+    padding: 24,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderWidth: 3,
+    borderColor: '#7F4701',
+    alignItems: 'center',
+    minHeight: 200,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 20,
+  },
+  categoryItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFF1C7',
+    width: '100%',
+  },
+  categoryText: {
+    fontSize: 16,
+    color: '#FFF1C7',
+  },
+  cancelButton: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#FFF1C7',
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 2,
+    borderColor: '#7F4701',
+  },
+  cancelButtonText: {
+    color: '#7F4701',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 }); 

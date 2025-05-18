@@ -12,14 +12,15 @@ import {
   Image,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import HeaderBanner from '../components/HeaderBanner';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as Location from 'expo-location';
 
 const VOLUNTEER_CATEGORIES = [
   'Logistics & Planning',
@@ -51,6 +52,10 @@ type Event = {
   time: string;
   description: string;
   location: string;
+  locationCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   coverPhoto?: string;
   volunteerCategories: string[];
   canceled?: boolean;
@@ -86,6 +91,14 @@ export default function ManageEventsScreen() {
   });
   const navigation: any = useNavigation();
   const route = useRoute();
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address: string;
+  } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [manualLocation, setManualLocation] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -289,6 +302,56 @@ export default function ManageEventsScreen() {
     await saveEvents(updated);
   };
 
+  const getCurrentLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Location permission is required to select event locations.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // Get address from coordinates
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude
+      });
+
+      const formattedAddress = address ? 
+        `${address.street ? address.street + ', ' : ''}${address.city ? address.city + ', ' : ''}${address.region ? address.region + ', ' : ''}${address.country || ''}` :
+        `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+      setSelectedLocation({
+        latitude,
+        longitude,
+        address: formattedAddress
+      });
+      setLocation(formattedAddress);
+      setShowLocationModal(false);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setLocationError('Failed to get location. Please try again.');
+    }
+  };
+
+  const handleManualLocationSubmit = () => {
+    if (!manualLocation.trim()) {
+      setLocationError('Please enter a location');
+      return;
+    }
+    setLocation(manualLocation);
+    setSelectedLocation(null); // Clear coordinates since we're using manual location
+    setShowLocationModal(false);
+  };
+
+  const handleLocationSelect = () => {
+    setLocationError(null);
+    setManualLocation('');
+    setShowLocationModal(true);
+  };
+
   const renderItem = ({ item }: { item: Event }) => (
     <View style={styles.card}>
       {item.coverPhoto && (
@@ -463,13 +526,83 @@ export default function ManageEventsScreen() {
           </Modal>
 
           <Text style={styles.label}>Location</Text>
-          <TextInput
-            style={[styles.input, errors.location && styles.inputError]}
-            placeholder="Location"
-            value={location}
-            onChangeText={setLocation}
-          />
+          <TouchableOpacity 
+            style={[styles.mapButton, errors.location && styles.inputError]} 
+            onPress={handleLocationSelect}
+          >
+            <Ionicons name="location" size={20} color="#62A0A5" style={styles.inputIcon} />
+            <Text style={styles.mapButtonText}>
+              {location || 'Select Location'}
+            </Text>
+          </TouchableOpacity>
           {errors.location ? <Text style={styles.errorText}>{errors.location}</Text> : null}
+
+          {/* Location Modal */}
+          <Modal
+            visible={showLocationModal}
+            transparent={true}
+            animationType="slide"
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Select Location</Text>
+                
+                {locationError && (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={24} color="#ff4444" />
+                    <Text style={styles.errorText}>{locationError}</Text>
+                  </View>
+                )}
+
+                <View style={styles.locationOptions}>
+                  <View style={styles.optionSection}>
+                    <Text style={styles.optionTitle}>Use Current Location</Text>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.primaryButton]}
+                      onPress={getCurrentLocation}
+                    >
+                      <Ionicons name="location" size={20} color="#fff" />
+                      <Text style={styles.primaryButtonText}>Get Current Location</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  <View style={styles.optionSection}>
+                    <Text style={styles.optionTitle}>Enter Location Manually</Text>
+                    <TextInput
+                      style={styles.manualInput}
+                      placeholder="Enter event location"
+                      value={manualLocation}
+                      onChangeText={setManualLocation}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.secondaryButton]}
+                      onPress={handleManualLocationSubmit}
+                    >
+                      <Text style={styles.secondaryButtonText}>Use This Location</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setShowLocationModal(false);
+                    setLocationError(null);
+                    setManualLocation('');
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
           <Text style={styles.label}>Description</Text>
           <TextInput
@@ -570,16 +703,20 @@ const styles = StyleSheet.create({
   },
 
   mapButton: {
-    backgroundColor: '#62A0A5',
-    padding: 10,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF1C7',
+    borderRadius: 6,
+    padding: 10,
+    backgroundColor: '#fff',
     marginBottom: 10,
   },
 
   mapButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#62A0A5',
+    marginLeft: 28,
+    flex: 1,
   },
 
   card: {
@@ -628,19 +765,77 @@ const styles = StyleSheet.create({
 
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingBottom: 0,
   },
 
   modalContent: {
-    backgroundColor: 'black',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
     alignItems: 'center',
-    minHeight: 300,
+  },
+
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#7F4701',
+    marginBottom: 8,
+  },
+
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+
+  modalButtons: {
     width: '100%',
+    gap: 12,
+  },
+
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    width: '100%',
+  },
+
+  primaryButton: {
+    backgroundColor: '#62A0A5',
+    gap: 8,
+  },
+
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  secondaryButton: {
+    backgroundColor: '#f5f5f5',
+  },
+
+  secondaryButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
   },
 
   categoryPickerButton: {
@@ -654,13 +849,6 @@ const styles = StyleSheet.create({
 
   categoryPickerButtonText: {
     color: '#62A0A5',
-  },
-
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#fff',
   },
 
   pickerContainer: {
@@ -679,11 +867,11 @@ const styles = StyleSheet.create({
   },
 
   categoryItemText: {
-    color: '#fff',
+    color: '#7F4701',
   },
 
   selectedCategoryText: {
-    color: '#fff',
+    color: '#FFF1C7',
     fontWeight: 'bold',
   },
 
@@ -885,5 +1073,64 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 18,
     marginTop: 20,
+  },
+
+  locationOptions: {
+    width: '100%',
+    gap: 16,
+  },
+
+  optionSection: {
+    width: '100%',
+    gap: 8,
+  },
+
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7F4701',
+    marginBottom: 4,
+  },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+
+  dividerText: {
+    color: '#666',
+    fontSize: 14,
+  },
+
+  manualInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#fff',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+
+  cancelButton: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    width: '100%',
+    alignItems: 'center',
+  },
+
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

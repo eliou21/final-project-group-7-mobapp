@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert, Modal, ScrollView, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EventCard from '../components/EventCard';
+import UnifiedEventCard from '../components/UnifiedEventCard';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,13 +83,18 @@ export default function VolunteerDashboard() {
   // Add real-time updates for saved events
   useEffect(() => {
     const checkForUpdates = async () => {
-      const savedEvents = await AsyncStorage.getItem('savedEvents');
-      if (savedEvents) {
-        const parsedSavedEvents = JSON.parse(savedEvents);
-        const newSavedIds = parsedSavedEvents.map((e: Event) => e.id);
-        if (JSON.stringify(newSavedIds) !== JSON.stringify(savedIds)) {
-          setSavedIds(newSavedIds);
+      try {
+        const savedEvents = await AsyncStorage.getItem('savedEvents');
+        if (savedEvents) {
+          const parsedSavedEvents = JSON.parse(savedEvents);
+          const newSavedIds = parsedSavedEvents.map((e: Event) => e.id);
+          if (JSON.stringify(newSavedIds) !== JSON.stringify(savedIds)) {
+            console.log('Updating saved IDs:', newSavedIds);
+            setSavedIds(newSavedIds);
+          }
         }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
       }
     };
 
@@ -99,14 +104,46 @@ export default function VolunteerDashboard() {
 
   const handleSave = async (event: Event) => {
     try {
+      console.log('Saving event:', event.id);
       const saved = await AsyncStorage.getItem('savedEvents');
       let savedEvents: Event[] = saved ? JSON.parse(saved) : [];
+      console.log('Current saved events:', savedEvents.length);
       
       if (!savedEvents.find(e => e.id === event.id)) {
-        savedEvents.push(event);
+        // Save the complete event data
+        const eventToSave = {
+          ...event,
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          time: event.time,
+          description: event.description,
+          location: event.location,
+          coverPhoto: event.coverPhoto,
+          tags: event.tags || [],
+          volunteerCategories: event.volunteerCategories || [],
+          currentVolunteers: event.currentVolunteers,
+          maxVolunteers: event.maxVolunteers,
+          canceled: event.canceled
+        };
+        savedEvents.push(eventToSave);
+        console.log('Adding event to saved events');
         await AsyncStorage.setItem('savedEvents', JSON.stringify(savedEvents));
-        setSavedIds([...savedIds, event.id]);
+        setSavedIds(prev => [...prev, event.id]);
+        console.log('Event saved successfully');
+      } else {
+        // Remove from saved events if already saved
+        savedEvents = savedEvents.filter(e => e.id !== event.id);
+        console.log('Removing event from saved events');
+        await AsyncStorage.setItem('savedEvents', JSON.stringify(savedEvents));
+        setSavedIds(prev => prev.filter(id => id !== event.id));
+        console.log('Event removed successfully');
       }
+
+      // Verify the save
+      const verifySaved = await AsyncStorage.getItem('savedEvents');
+      const verifyEvents = verifySaved ? JSON.parse(verifySaved) : [];
+      console.log('Verified saved events:', verifyEvents.length);
     } catch (error) {
       console.error('Error saving event:', error);
     }
@@ -263,10 +300,19 @@ export default function VolunteerDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
       <HeaderBanner />
+      <View style={styles.headerCard}>
+        <View style={styles.headerIcon}>
+          <Ionicons name="person-circle" size={32} color="#62A0A5" />
+        </View>
+        <View>
+          <Text style={styles.title}>Welcome, {user?.firstName || 'Volunteer'}!</Text>
+          <Text style={styles.subtitle}>Find and join events that match your interests</Text>
+        </View>
+      </View>
+      <View style={styles.divider} />
       <View style={styles.container}>
-        <Text style={styles.title}>Welcome, {user?.firstName || 'Volunteer'}!</Text>
-        <Text style={styles.subtitle}>Here are the events you can join:</Text>
         <FlatList
           data={events.filter(e => !e.canceled)}
           keyExtractor={item => item.id}
@@ -278,37 +324,46 @@ export default function VolunteerDashboard() {
                 activeOpacity={0.7}
                 disabled={item.canceled}
               >
-                <EventCard 
-                  title={item.title} 
-                  date={item.date} 
+                <UnifiedEventCard
+                  title={item.title}
+                  date={item.date}
                   time={item.time}
-                  description={item.description}
                   location={item.location}
-                  volunteerCategories={item.volunteerCategories}
-                  coverPhoto={item.coverPhoto}
+                  description={item.description}
                   tags={item.tags}
-                  onPress={() => handleEventPress(item)}
-                />
-                {item.canceled && (
-                  <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 8 }}>Event Canceled</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSave(item)}
-                style={styles.saveButton}
-                disabled={savedIds.includes(item.id) || item.canceled}
-              >
-                <Ionicons
-                  name={savedIds.includes(item.id) ? 'bookmark' : 'bookmark-outline'}
-                  size={28}
-                  color={savedIds.includes(item.id) ? '#62A0A5' : '#aaa'}
+                  coverPhoto={item.coverPhoto}
+                  volunteerCount={item.currentVolunteers}
+                  maxVolunteers={item.maxVolunteers}
+                  showVolunteerCount={true}
+                  canceled={item.canceled}
+                  showFullSlot={!item.canceled && (item.currentVolunteers ?? 0) >= (item.maxVolunteers ?? 0)}
+                  style={styles.eventCard}
+                  saveButton={
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleSave(item);
+                      }}
+                      style={styles.saveButton}
+                      disabled={item.canceled}
+                    >
+                      <Ionicons
+                        name={savedIds.includes(item.id) ? 'bookmark' : 'bookmark-outline'}
+                        size={28}
+                        color={savedIds.includes(item.id) ? '#62A0A5' : '#aaa'}
+                      />
+                    </TouchableOpacity>
+                  }
                 />
               </TouchableOpacity>
             </View>
           )}
-          contentContainerStyle={{ marginTop: 20 }}
+          contentContainerStyle={styles.eventsList}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No events available.</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={60} color="#ccc" />
+              <Text style={styles.emptyText}>No events available</Text>
+            </View>
           }
         />
         {/* Prompt Modal */}
@@ -344,27 +399,90 @@ export default function VolunteerDashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#555', textAlign: 'center', marginBottom: 10 },
-  eventContainer: {
-    flexDirection: 'row',
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFEAB8',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  headerCard: {
+    backgroundColor: '#62A0A5',
+    borderRadius: 25,
+    padding: 24,
+    margin: 16,
+    marginBottom: 15,
     alignItems: 'center',
-    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  headerIcon: {
+    backgroundColor: '#FFF1C7',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 3,
+    backgroundColor: '#62A0A5',
+  },
+  eventContainer: {
+    width: '100%',
+    marginBottom: 15,
   },
   eventCardContainer: {
-    flex: 1,
+    width: '100%',
+  },
+  eventCard: {
+    width: '100%',
   },
   saveButton: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
     padding: 8,
-    marginLeft: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventsList: {
+    paddingTop: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 40,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888',
+    color: '#666',
     fontSize: 16,
-    marginTop: 20,
+    marginTop: 10,
+    fontStyle: 'italic',
   },
   modalContainer: {
     flex: 1,
@@ -383,6 +501,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     textAlign: 'center',
+    color: '#7F4701',
   },
   modalSubtitle: {
     fontSize: 16,
@@ -400,6 +519,7 @@ const styles = StyleSheet.create({
   },
   positionItemText: {
     fontSize: 16,
+    color: '#7F4701',
   },
   cancelButton: {
     marginTop: 15,

@@ -33,6 +33,13 @@ type Event = {
   tags?: string[];
 };
 
+type Volunteer = {
+  id: string;
+  name: string;
+  email: string;
+  assignedEvents: string[];
+};
+
 const TAG_OPTIONS = [
   'Environmental',
   'Animal',
@@ -50,6 +57,10 @@ export default function AdminDashboard() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [selectedEventVolunteers, setSelectedEventVolunteers] = useState<{
+    eventId: string;
+    volunteers: Volunteer[];
+  } | null>(null);
   const navigation: any = useNavigation();
 
   useEffect(() => {
@@ -128,6 +139,24 @@ export default function AdminDashboard() {
     );
   };
 
+  const loadEventVolunteers = async (eventId: string) => {
+    try {
+      const storedVolunteers = await AsyncStorage.getItem('volunteers');
+      if (storedVolunteers) {
+        const volunteers: Volunteer[] = JSON.parse(storedVolunteers);
+        const eventVolunteers = volunteers.filter(v => 
+          v.assignedEvents && v.assignedEvents.includes(eventId)
+        );
+        setSelectedEventVolunteers({
+          eventId,
+          volunteers: eventVolunteers
+        });
+      }
+    } catch (error) {
+      console.error('Error loading volunteers:', error);
+    }
+  };
+
   const renderEventItem = ({ item }: { item: Event }) => (
     <View style={{ position: 'relative' }}>
       <UnifiedEventCard
@@ -149,12 +178,20 @@ export default function AdminDashboard() {
         cancelDisabled={item.canceled}
         showFullSlot={!item.canceled && (item.currentVolunteers ?? 0) >= (item.maxVolunteers ?? 0)}
       />
-      <TouchableOpacity
-        style={styles.editButton}
-        onPress={() => navigation.navigate('AdminTabs', { screen: 'ManageEvents', params: { event: item } })}
-      >
-        <Ionicons name="create-outline" size={24} color="#7F4701" />
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('AdminTabs', { screen: 'ManageEvents', params: { event: item } })}
+        >
+          <Ionicons name="create-outline" size={24} color="#7F4701" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.volunteersButton}
+          onPress={() => loadEventVolunteers(item.id)}
+        >
+          <Ionicons name="people-outline" size={24} color="#7F4701" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -261,6 +298,48 @@ export default function AdminDashboard() {
               resizeMode="contain"
             />
           )}
+        </View>
+      </Modal>
+
+      {/* Volunteer List Modal */}
+      <Modal
+        visible={!!selectedEventVolunteers}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedEventVolunteers(null)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.volunteerModalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Registered Volunteers</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setSelectedEventVolunteers(null)}
+                >
+                  <Ionicons name="close" size={24} color="#7F4701" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {selectedEventVolunteers?.volunteers.length === 0 ? (
+              <View style={styles.emptyVolunteersContainer}>
+                <Ionicons name="people-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyVolunteersText}>No volunteers registered yet</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.volunteerList}>
+                {selectedEventVolunteers?.volunteers.map((volunteer) => (
+                  <View key={volunteer.id} style={styles.volunteerItem}>
+                    <View style={styles.volunteerInfo}>
+                      <Text style={styles.volunteerName}>{volunteer.name}</Text>
+                      <Text style={styles.volunteerEmail}>{volunteer.email}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -635,12 +714,101 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
 
-  editButton: {
+  actionButtons: {
     position: 'absolute',
     top: 190,
     right: 15,
-    backgroundColor: 'rgb(252, 252, 252)',
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  editButton: {
+    backgroundColor: '#FFF1C7',
+    padding: 8,
     borderRadius: 20,
-    padding: 7,
+    borderWidth: 2,
+    borderColor: '#7F4701',
+  },
+
+  volunteersButton: {
+    backgroundColor: '#FFF1C7',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#7F4701',
+  },
+
+  volunteerModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+  },
+
+  modalHeader: {
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#7F4701',
+  },
+
+  modalCloseButton: {
+    padding: 4,
+  },
+
+  volunteerList: {
+    maxHeight: '80%',
+  },
+
+  volunteerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+
+  volunteerInfo: {
+    flex: 1,
+  },
+
+  volunteerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+
+  volunteerEmail: {
+    fontSize: 14,
+    color: '#666',
+  },
+
+  emptyVolunteersContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+
+  emptyVolunteersText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
