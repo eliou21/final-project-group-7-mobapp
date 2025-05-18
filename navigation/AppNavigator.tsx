@@ -10,10 +10,12 @@ import ProfileScreen from '../screens/ProfileScreen';
 import VolunteerDashboard from '../screens/VolunteerDashboard';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import EventRegistrationScreen from '../screens/EventRegistrationScreen';
 import { TouchableOpacity, Text } from 'react-native';
 import SavedEventsScreen from '../screens/SavedEventsScreen';
+import MyRegisteredEventsScreen from '../screens/MyRegisteredEventsScreen';
+import CancelledEventsScreen from '../screens/CancelledEventsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,25 +29,36 @@ function ExitTabButton({ navigation }: { navigation: any }) {
         logout();
       }}
     >
-      <Ionicons name="log-out" size={24} color="#62A0A5" />
-      <Text style={{ fontSize: 12, color: '#62A0A5' }}>Exit</Text>
+      <Ionicons name="log-out" size={24} color="#fff" />
+      <Text style={{ fontSize: 12, color: '#fff' }}>Exit</Text>
     </TouchableOpacity>
   );
 }
 
 function AdminTabs({ navigation }: any) {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarStyle: { backgroundColor: '#7BB1B7' },
+        tabBarActiveTintColor: '#FFF1C7',
+        tabBarInactiveTintColor: '#fff',
+        headerShown: false
+      }}
+    >
       <Tab.Screen name="Dashboard" component={AdminDashboard} options={{
         tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
       }} />
       <Tab.Screen name="ManageEvents" component={ManageEventsScreen} options={{
-        title: 'Events',
-        tabBarIcon: ({ color, size }) => <Ionicons name="calendar" color={color} size={size} />,
+        title: 'Event Form',
+        tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="file-document-edit" color={color} size={size} />,
       }} />
       <Tab.Screen name="ManageVolunteers" component={ManageVolunteersScreen} options={{
         title: 'Volunteers',
         tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+      }} />
+      <Tab.Screen name="CancelledEvents" component={CancelledEventsScreen} options={{
+        title: 'Events',
+        tabBarIcon: ({ color, size }) => <Ionicons name="calendar" color={color} size={size} />,
       }} />
       <Tab.Screen name="Exit" component={WelcomeScreen} options={{
         tabBarButton: (props) => (
@@ -58,13 +71,24 @@ function AdminTabs({ navigation }: any) {
 
 function VolunteerTabs({ navigation }: any) {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarStyle: { backgroundColor: '#7BB1B7' },
+        tabBarActiveTintColor: '#FFF1C7',
+        tabBarInactiveTintColor: '#fff',
+        headerShown: false
+      }}
+    >
       <Tab.Screen name="Dashboard" component={VolunteerDashboard} options={{
         tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
       }} />
       <Tab.Screen name="SavedEvents" component={SavedEventsScreen} options={{
         tabBarIcon: ({ color, size }) => <Ionicons name="bookmark" color={color} size={size} />,
         title: 'Saved Events',
+      }} />
+      <Tab.Screen name="MyRegisteredEvents" component={MyRegisteredEventsScreen} options={{
+        tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} />,
+        title: 'My Events',
       }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{
         tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
@@ -98,6 +122,8 @@ export default function AppNavigator() {
       ) : (
         <Stack.Screen name="VolunteerTabs" component={VolunteerTabs} />
       )}
+      <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+      <Stack.Screen name="CancelledEvents" component={CancelledEventsScreen} />
     </Stack.Navigator>
   );
 }

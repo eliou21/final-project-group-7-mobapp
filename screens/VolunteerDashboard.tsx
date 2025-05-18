@@ -5,6 +5,7 @@ import EventCard from '../components/EventCard';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
+import HeaderBanner from '../components/HeaderBanner';
 
 type Event = {
   id: string;
@@ -15,6 +16,10 @@ type Event = {
   location: string;
   coverPhoto?: string;
   volunteerCategories: string[];
+  canceled?: boolean;
+  tags?: string[];
+  currentVolunteers?: number;
+  maxVolunteers?: number;
 };
 
 type PendingVolunteer = {
@@ -45,6 +50,8 @@ export default function VolunteerDashboard() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [pendingEvent, setPendingEvent] = useState<Event | null>(null);
 
   const loadData = async () => {
     try {
@@ -143,24 +150,29 @@ export default function VolunteerDashboard() {
     }
 
     const status = await checkVolunteerStatus(event.id);
-    
     if (status === 'approved') {
       Alert.alert('Notice', 'You are already volunteering for this event.');
       return;
     }
-
     if (status === 'pending') {
       Alert.alert('Notice', 'You already have a pending request for this event.');
       return;
     }
-
     if (status === 'error') {
       Alert.alert('Error', 'Unable to check volunteer status. Please try again.');
       return;
     }
+    setPendingEvent(event);
+    setShowPromptModal(true);
+  };
 
-    setSelectedEvent(event);
-    setShowPositionModal(true);
+  const handlePromptResponse = (response: 'yes' | 'no') => {
+    if (response === 'yes' && pendingEvent) {
+      setSelectedEvent(pendingEvent);
+      setShowPositionModal(true);
+    }
+    setShowPromptModal(false);
+    setPendingEvent(null);
   };
 
   const handlePositionSelect = async (position: string) => {
@@ -200,6 +212,14 @@ export default function VolunteerDashboard() {
       setShowPositionModal(false);
       setSelectedEvent(null);
     }
+  };
+
+  const handleRegister = (event: Event) => {
+    if ((event.currentVolunteers ?? 0) >= (event.maxVolunteers ?? 0)) {
+      Alert.alert('Event Full', 'This event has reached its volunteer limit and is now closed.');
+      return;
+    }
+    // ... existing registration logic ...
   };
 
   const renderPositionModal = () => {
@@ -243,11 +263,12 @@ export default function VolunteerDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <HeaderBanner />
       <View style={styles.container}>
         <Text style={styles.title}>Welcome, {user?.firstName || 'Volunteer'}!</Text>
         <Text style={styles.subtitle}>Here are the events you can join:</Text>
         <FlatList
-          data={events}
+          data={events.filter(e => !e.canceled)}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.eventContainer}>
@@ -255,6 +276,7 @@ export default function VolunteerDashboard() {
                 style={styles.eventCardContainer}
                 onPress={() => handleEventPress(item)}
                 activeOpacity={0.7}
+                disabled={item.canceled}
               >
                 <EventCard 
                   title={item.title} 
@@ -263,13 +285,18 @@ export default function VolunteerDashboard() {
                   description={item.description}
                   location={item.location}
                   volunteerCategories={item.volunteerCategories}
+                  coverPhoto={item.coverPhoto}
+                  tags={item.tags}
                   onPress={() => handleEventPress(item)}
                 />
+                {item.canceled && (
+                  <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 8 }}>Event Canceled</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => handleSave(item)}
                 style={styles.saveButton}
-                disabled={savedIds.includes(item.id)}
+                disabled={savedIds.includes(item.id) || item.canceled}
               >
                 <Ionicons
                   name={savedIds.includes(item.id) ? 'bookmark' : 'bookmark-outline'}
@@ -284,6 +311,32 @@ export default function VolunteerDashboard() {
             <Text style={styles.emptyText}>No events available.</Text>
           }
         />
+        {/* Prompt Modal */}
+        <Modal
+          visible={showPromptModal}
+          transparent
+          animationType="fade"
+        >
+          <View style={[styles.modalContainer, { justifyContent: 'center', alignItems: 'center' }]}> 
+            <View style={[styles.modalContent, { backgroundColor: 'white', minWidth: 300, alignItems: 'center' }]}> 
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20 }}>Do you want to register for this event?</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#62A0A5', padding: 12, borderRadius: 8, marginRight: 10, alignItems: 'center' }}
+                  onPress={() => handlePromptResponse('yes')}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Yes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#ccc', padding: 12, borderRadius: 8, marginLeft: 10, alignItems: 'center' }}
+                  onPress={() => handlePromptResponse('no')}
+                >
+                  <Text style={{ color: '#333', fontWeight: 'bold' }}>No</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
         {renderPositionModal()}
       </View>
     </SafeAreaView>

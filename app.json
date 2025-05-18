@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "iVolunteer-Finals",
-    "slug": "iVolunteer-Finals",
+    "name": "iVolunteer",
+    "slug": "iVolunteer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

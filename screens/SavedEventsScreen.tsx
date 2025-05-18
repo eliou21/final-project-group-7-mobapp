@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventCard from '../components/EventCard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import HeaderBanner from '../components/HeaderBanner';
 
 type Event = {
   id: string;
@@ -39,14 +40,30 @@ type Volunteer = {
 export default function SavedEventsScreen() {
   const [savedEvents, setSavedEvents] = useState<Event[]>([]);
   const { user } = useAuth();
+  const [registeredEventIds, setRegisteredEventIds] = useState<string[]>([]);
 
   const loadSavedEvents = async () => {
     try {
       const stored = await AsyncStorage.getItem('savedEvents');
-      if (stored) {
-        const parsedEvents = JSON.parse(stored);
-        setSavedEvents(parsedEvents);
+      let parsedEvents: Event[] = stored ? JSON.parse(stored) : [];
+      // Remove events that are already registered (pending or approved)
+      if (user) {
+        const [storedPendingVolunteers, storedVolunteers] = await Promise.all([
+          AsyncStorage.getItem('pendingVolunteers'),
+          AsyncStorage.getItem('volunteers'),
+        ]);
+        const pendingVolunteers: PendingVolunteer[] = storedPendingVolunteers ? JSON.parse(storedPendingVolunteers) : [];
+        const volunteers: Volunteer[] = storedVolunteers ? JSON.parse(storedVolunteers) : [];
+        const registeredIds = [
+          ...pendingVolunteers.filter(pv => pv.volunteerEmail === user.email && pv.status === 'pending').map(pv => pv.eventId),
+          ...volunteers.filter(v => v.email === user.email && v.status === 'active').flatMap(v => v.assignedEvents),
+        ];
+        setRegisteredEventIds(registeredIds);
+        // Remove registered events from savedEvents
+        parsedEvents = parsedEvents.filter(event => !registeredIds.includes(event.id));
+        await AsyncStorage.setItem('savedEvents', JSON.stringify(parsedEvents));
       }
+      setSavedEvents(parsedEvents);
     } catch (error) {
       console.error('Error loading saved events:', error);
     }
@@ -60,17 +77,30 @@ export default function SavedEventsScreen() {
   useEffect(() => {
     const checkForUpdates = async () => {
       const stored = await AsyncStorage.getItem('savedEvents');
-      if (stored) {
-        const parsedEvents = JSON.parse(stored);
-        if (JSON.stringify(parsedEvents) !== JSON.stringify(savedEvents)) {
-          setSavedEvents(parsedEvents);
-        }
+      let parsedEvents: Event[] = stored ? JSON.parse(stored) : [];
+      if (user) {
+        const [storedPendingVolunteers, storedVolunteers] = await Promise.all([
+          AsyncStorage.getItem('pendingVolunteers'),
+          AsyncStorage.getItem('volunteers'),
+        ]);
+        const pendingVolunteers: PendingVolunteer[] = storedPendingVolunteers ? JSON.parse(storedPendingVolunteers) : [];
+        const volunteers: Volunteer[] = storedVolunteers ? JSON.parse(storedVolunteers) : [];
+        const registeredIds = [
+          ...pendingVolunteers.filter(pv => pv.volunteerEmail === user.email && pv.status === 'pending').map(pv => pv.eventId),
+          ...volunteers.filter(v => v.email === user.email && v.status === 'active').flatMap(v => v.assignedEvents),
+        ];
+        setRegisteredEventIds(registeredIds);
+        parsedEvents = parsedEvents.filter(event => !registeredIds.includes(event.id));
+        await AsyncStorage.setItem('savedEvents', JSON.stringify(parsedEvents));
+      }
+      if (JSON.stringify(parsedEvents) !== JSON.stringify(savedEvents)) {
+        setSavedEvents(parsedEvents);
       }
     };
 
     const interval = setInterval(checkForUpdates, 2000); // Check every 2 seconds
     return () => clearInterval(interval);
-  }, [savedEvents]);
+  }, [savedEvents, user]);
 
   const handleRemoveEvent = async (eventId: string) => {
     try {
@@ -178,7 +208,8 @@ export default function SavedEventsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <HeaderBanner />
       <View style={styles.container}>
         <Text style={styles.title}>Saved Events</Text>
         <FlatList
