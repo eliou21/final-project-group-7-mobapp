@@ -273,6 +273,7 @@ export default function AdminDashboard() {
               renderItem={renderEventItem}
               contentContainerStyle={{ paddingBottom: 0 }}
               showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
             />
           )}
         </View>
@@ -357,12 +358,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 0,
     paddingBottom: 0,
+    minHeight: 0,
   },
 
   headerCard: {
     backgroundColor: '#62A0A5',
     borderRadius: 25,
-    padding: 24,
+    padding: 20,
     margin: 16,
     marginBottom: 15,
     alignItems: 'center',
@@ -386,14 +388,14 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#FFF1C7',
     marginBottom: 4,
   },
   
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#fff',
     fontWeight: '600',
   },
@@ -401,6 +403,7 @@ const styles = StyleSheet.create({
   eventsSection: {
     flex: 1,
     paddingBottom: 0,
+    minHeight: 0,
   },
 
   eventsList: {

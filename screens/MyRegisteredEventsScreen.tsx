@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, SafeAreaView, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, SafeAreaView, Image, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,11 +73,30 @@ export default function MyRegisteredEventsScreen() {
   const [sortStatus, setSortStatus] = useState<'all' | 'active' | 'pending' | 'removed' | 'cancelled'>('all');
   const [editPending, setEditPending] = useState<{ pendingId: string; category: string; categories: string[] } | null>(null);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [tabAnim] = useState(new Animated.Value(0));
+  const [selectedEditCategory, setSelectedEditCategory] = useState<string | null>(null);
+  const [selectedEditPendingCategory, setSelectedEditPendingCategory] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line
   }, []);
+
+  // Animate tab indicator on tab change
+  useEffect(() => {
+    let idx = 0;
+    switch (sortStatus) {
+      case 'all': idx = 0; break;
+      case 'active': idx = 1; break;
+      case 'pending': idx = 2; break;
+    }
+    Animated.timing(tabAnim, {
+      toValue: idx,
+      duration: 220,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [sortStatus]);
 
   const loadData = async () => {
     if (!user) return;
@@ -188,21 +207,48 @@ export default function MyRegisteredEventsScreen() {
         <Modal visible={showEditModal} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select New Category</Text>
+              <Text style={styles.modalTitle}>Select New Position</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {editCategories.map((cat) => (
                   <TouchableOpacity
                     key={cat}
-                    style={styles.categoryItem}
-                    onPress={() => handleSelectCategory(cat)}
+                    style={[
+                      styles.categoryItem,
+                      (selectedEditCategory ?? positions[editEvent.id]) === cat && styles.selectedCategoryItem
+                    ]}
+                    onPress={() => setSelectedEditCategory(cat)}
                   >
-                    <Text style={styles.categoryText}>{cat}</Text>
+                    <Text style={[
+                      styles.categoryText,
+                      (selectedEditCategory ?? positions[editEvent.id]) === cat && styles.selectedCategoryText
+                    ]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+                <TouchableOpacity
+                  style={[styles.cancelButtonCustom, { flex: 1 }]}
+                  onPress={() => {
+                    setShowEditModal(false);
+                    setEditEvent(null);
+                    setSelectedEditCategory(null);
+                  }}
+                >
+                  <Text style={styles.cancelButtonTextCustom}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.changeButtonCustom, { flex: 1, }]}
+                  disabled={!selectedEditCategory || selectedEditCategory === positions[editEvent.id]}
+                  onPress={async () => {
+                    if (selectedEditCategory && selectedEditCategory !== positions[editEvent.id]) {
+                      await handleSelectCategory(selectedEditCategory);
+                      setSelectedEditCategory(null);
+                    }
+                  }}
+                >
+                  <Text style={styles.changeButtonTextCustom}>Change</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -213,21 +259,47 @@ export default function MyRegisteredEventsScreen() {
         <Modal visible={true} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select New Category</Text>
+              <Text style={styles.modalTitle}>Select New Position</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {editPending.categories.map((cat) => (
                   <TouchableOpacity
                     key={cat}
-                    style={styles.categoryItem}
-                    onPress={() => handleEditPendingCategory(editPending.pendingId, cat)}
+                    style={[
+                      styles.categoryItem,
+                      (selectedEditPendingCategory ?? editPending.category) === cat && styles.selectedCategoryItem
+                    ]}
+                    onPress={() => setSelectedEditPendingCategory(cat)}
                   >
-                    <Text style={styles.categoryText}>{cat}</Text>
+                    <Text style={[
+                      styles.categoryText,
+                      (selectedEditPendingCategory ?? editPending.category) === cat && styles.selectedCategoryText
+                    ]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditPending(null)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+                <TouchableOpacity
+                  style={[styles.cancelButtonCustom, { flex: 1 }]}
+                  onPress={() => {
+                    setEditPending(null);
+                    setSelectedEditPendingCategory(null);
+                  }}
+                >
+                  <Text style={styles.cancelButtonTextCustom}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.changeButtonCustom, { flex: 1, opacity: selectedEditPendingCategory && selectedEditPendingCategory !== editPending.category ? 1 : 0.5 }]}
+                  disabled={!selectedEditPendingCategory || selectedEditPendingCategory === editPending.category}
+                  onPress={async () => {
+                    if (selectedEditPendingCategory && selectedEditPendingCategory !== editPending.category) {
+                      await handleEditPendingCategory(editPending.pendingId, selectedEditPendingCategory);
+                      setSelectedEditPendingCategory(null);
+                    }
+                  }}
+                >
+                  <Text style={styles.changeButtonTextCustom}>Change</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -295,9 +367,7 @@ export default function MyRegisteredEventsScreen() {
     });
     if (sortStatus === 'active') return activeEvents;
     if (sortStatus === 'pending') return pendingEvents;
-    if (sortStatus === 'removed') return removedEvents;
-    if (sortStatus === 'cancelled') return cancelledEvents;
-    return [...activeEvents, ...pendingEvents, ...removedEvents, ...cancelledEvents];
+    return [...activeEvents, ...pendingEvents];
   };
 
   return (
@@ -309,42 +379,39 @@ export default function MyRegisteredEventsScreen() {
       </View>
       <View style={styles.bannerDivider} />
       <View style={styles.container}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.sortRowContainer}
-        >
+        {/* Animated Tab Bar */}
+        <View style={styles.tabBar}>
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              {
+                left: tabAnim.interpolate({
+                  inputRange: [0, 1, 2],
+                  outputRange: ['8%', '40%', '72%'],
+                }),
+                width: '24%',
+              },
+            ]}
+          />
           <TouchableOpacity
-            style={[styles.sortButton, sortStatus === 'all' && styles.sortButtonActive]}
+            style={[styles.tab, sortStatus === 'all' && styles.activeTab]}
             onPress={() => setSortStatus('all')}
           >
-            <Text style={[styles.sortButtonText, sortStatus === 'all' && styles.sortButtonTextActive]}>All</Text>
+            <Text style={[styles.tabText, sortStatus === 'all' && styles.activeTabText]}>All</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.sortButton, sortStatus === 'active' && styles.sortButtonActive]}
+            style={[styles.tab, sortStatus === 'active' && styles.activeTab]}
             onPress={() => setSortStatus('active')}
           >
-            <Text style={[styles.sortButtonText, sortStatus === 'active' && styles.sortButtonTextActive]}>Active</Text>
+            <Text style={[styles.tabText, sortStatus === 'active' && styles.activeTabText]}>Active</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.sortButton, sortStatus === 'pending' && styles.sortButtonActive]}
+            style={[styles.tab, sortStatus === 'pending' && styles.activeTab]}
             onPress={() => setSortStatus('pending')}
           >
-            <Text style={[styles.sortButtonText, sortStatus === 'pending' && styles.sortButtonTextActive]}>Pending</Text>
+            <Text style={[styles.tabText, sortStatus === 'pending' && styles.activeTabText]}>Pending</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sortButton, sortStatus === 'removed' && styles.sortButtonActive]}
-            onPress={() => setSortStatus('removed')}
-          >
-            <Text style={[styles.sortButtonText, sortStatus === 'removed' && styles.sortButtonTextActive]}>Removed</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sortButton, sortStatus === 'cancelled' && styles.sortButtonActive]}
-            onPress={() => setSortStatus('cancelled')}
-          >
-            <Text style={[styles.sortButtonText, sortStatus === 'cancelled' && styles.sortButtonTextActive]}>Cancelled</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        </View>
         {getDisplayEvents().length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={60} color="#ccc" />
@@ -387,11 +454,7 @@ export default function MyRegisteredEventsScreen() {
                 )}
                 <View style={styles.infoRow}>
                   <Ionicons name="briefcase-outline" size={20} color="#7F4701" style={styles.infoIcon} />
-                  <Text style={styles.infoText}>Category: {item.category}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="information-circle-outline" size={20} color="#7F4701" style={styles.infoIcon} />
-                  <Text style={styles.infoText}>Status: {item.status === 'active' ? 'Approved' : item.status === 'removed' ? 'Removed' : item.status === 'cancelled' ? 'Cancelled' : 'Pending'}</Text>
+                  <Text style={styles.infoText}>Position: {item.category}</Text>
                 </View>
                 {item.status === 'removed' && (
                   <View style={styles.statusBadge}>
@@ -407,11 +470,11 @@ export default function MyRegisteredEventsScreen() {
                   <View style={styles.row}>
                     <TouchableOpacity style={styles.editButton} onPress={() => handleEditCategory(item)}>
                       <Ionicons name="create-outline" size={20} color="#fff" />
-                      <Text style={styles.buttonText}>Edit Category</Text>
+                      <Text style={styles.buttonText}>Edit Position</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveRegistration(item.id)}>
                       <Ionicons name="trash-outline" size={20} color="#fff" />
-                      <Text style={styles.buttonText}>Remove</Text>
+                      <Text style={styles.buttonText}>Unregister</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -426,10 +489,10 @@ export default function MyRegisteredEventsScreen() {
                       });
                     }}>
                       <Ionicons name="create-outline" size={20} color="#fff" />
-                      <Text style={styles.buttonText}>Edit Category</Text>
+                      <Text style={styles.buttonText}>Edit Position</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.removeButton} onPress={() => handleCancelPending(item.pendingId)}>
-                      <Ionicons name="trash-outline" size={20} color="#fff" />
+                      <Ionicons name="close-outline" size={20} color="#fff" />
                       <Text style={styles.buttonText}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
@@ -495,41 +558,45 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  sortRowContainer: {
+  tabBar: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 8,
-    marginBottom: 10,
-  },
-  sortButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#FFF1C7',
-    borderWidth: 2,
-    borderColor: '#7F4701',
-    minWidth: 110,
-    alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-  },
-  sortButtonActive: {
+    marginBottom: 15,
     backgroundColor: '#62A0A5',
-    borderColor: '#62A0A5',
+    borderRadius: 25,
+    padding: 4,
+    position: 'relative',
+    height: 48,
   },
-  sortButtonText: {
-    color: '#7F4701',
-    fontWeight: '600',
-    fontSize: 14,
-    textAlign: 'center',
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 25,
+    zIndex: 1,
   },
-  sortButtonTextActive: {
-    color: '#FFF1C7',
-    fontWeight: '600',
+  activeTab: {
+    backgroundColor: '#FEBD6B',
+  },
+  tabText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  activeTabText: {
+    color: '#fff',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 4,
+    width: '16%',
+    height: 40,
+    backgroundColor: '#FEBD6B',
+    borderRadius: 20,
+    zIndex: 0,
   },
   card: {
-    backgroundColor: '#7BB1B7',
+    backgroundColor: 'rgb(255, 252, 236)',
     borderRadius: 25,
     borderColor: '#7F4701',
     borderWidth: 3,
@@ -550,7 +617,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FFF1C7',
+    color: '#7F4701',
     marginBottom: 12,
   },
   infoRow: {
@@ -563,7 +630,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   infoText: {
-    color: '#FFF1C7',
+    color: '#7F4701',
     fontSize: 15,
     flex: 1,
   },
@@ -621,13 +688,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tagBadgeSmall: {
-    backgroundColor: '#62A0A5',
+    backgroundColor: '#FEBD6B',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   tagTextSmall: {
-    color: '#FFF1C7',
+    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -674,19 +741,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFF1C7',
   },
-  cancelButton: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: '#FFF1C7',
+  cancelButtonCustom: {
+    backgroundColor: '#ff6b6b',
     borderRadius: 12,
-    alignItems: 'center',
-    width: '100%',
     borderWidth: 2,
-    borderColor: '#7F4701',
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
   },
-  cancelButtonText: {
-    color: '#7F4701',
+  cancelButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
+  },
+  changeButtonCustom: {
+    backgroundColor: '#7AA47D',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+  changeButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  selectedCategoryItem: {
+    backgroundColor: 'rgb(113, 165, 174)',
+    borderRadius: 10,
+  },
+  selectedCategoryText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 }); 

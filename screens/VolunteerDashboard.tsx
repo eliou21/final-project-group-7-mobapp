@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert, Modal, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert, Modal, ScrollView, StatusBar, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UnifiedEventCard from '../components/UnifiedEventCard';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +42,16 @@ type Volunteer = {
   status: 'active' | 'inactive';
 };
 
+const TAG_OPTIONS = [
+  'Environmental',
+  'Animal',
+  'Social Work',
+  'Healthcare',
+  'Blood Donation',
+  'Sports',
+  'Others',
+];
+
 export default function VolunteerDashboard() {
   const navigation = useNavigation();
   const { user } = useAuth();
@@ -50,8 +60,9 @@ export default function VolunteerDashboard() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [showPromptModal, setShowPromptModal] = useState(false);
-  const [pendingEvent, setPendingEvent] = useState<Event | null>(null);
+  const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -291,17 +302,18 @@ export default function VolunteerDashboard() {
       Alert.alert('Error', 'Unable to check volunteer status. Please try again.');
       return;
     }
-    setPendingEvent(event);
-    setShowPromptModal(true);
-  };
-
-  const handlePromptResponse = (response: 'yes' | 'no') => {
-    if (response === 'yes' && pendingEvent) {
-      setSelectedEvent(pendingEvent);
-      setShowPositionModal(true);
-    }
-    setShowPromptModal(false);
-    setPendingEvent(null);
+    Alert.alert(
+      'Register for Event',
+      'Do you want to register for this event?',
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes', style: 'default', onPress: () => {
+            setSelectedEvent(event);
+            setShowPositionModal(true);
+          }
+        },
+      ]
+    );
   };
 
   const handlePositionSelect = async (position: string) => {
@@ -356,41 +368,71 @@ export default function VolunteerDashboard() {
 
   const renderPositionModal = () => {
     if (!selectedEvent) return null;
-
     return (
-      <Modal
-        visible={showPositionModal}
-        transparent
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Volunteer Position</Text>
-            <Text style={styles.modalSubtitle}>for {selectedEvent.title}</Text>
-            <ScrollView style={styles.positionsList}>
+      <Modal visible={showPositionModal} transparent animationType="slide">
+        <View style={styles.modalContainerCustom}>
+          <View style={styles.modalContentCustom}>
+            <Text style={styles.modalTitleCustom}>Select Volunteer Position</Text>
+            <Text style={styles.modalSubtitleCustom}>for {selectedEvent.title}</Text>
+            <ScrollView style={{ maxHeight: 300, width: '100%' }}>
               {selectedEvent.volunteerCategories.map((position) => (
                 <TouchableOpacity
                   key={position}
-                  style={styles.positionItem}
-                  onPress={() => handlePositionSelect(position)}
+                  style={[
+                    styles.categoryItemCustom,
+                    selectedPosition === position && styles.selectedCategoryItemCustom
+                  ]}
+                  onPress={() => setSelectedPosition(position)}
                 >
-                  <Text style={styles.positionItemText}>{position}</Text>
+                  <Text style={[
+                    styles.categoryTextCustom,
+                    selectedPosition === position && styles.selectedCategoryTextCustom
+                  ]}>{position}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                setShowPositionModal(false);
-                setSelectedEvent(null);
-              }}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+              <TouchableOpacity
+                style={[styles.cancelButtonCustom, { flex: 1 }]}
+                onPress={() => {
+                  setShowPositionModal(false);
+                  setSelectedEvent(null);
+                  setSelectedPosition(null);
+                }}
+              >
+                <Text style={styles.cancelButtonTextCustom}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.changeButtonCustom, { flex: 1, opacity: selectedPosition ? 1 : 0.5 }]}
+                disabled={!selectedPosition}
+                onPress={async () => {
+                  if (selectedPosition) {
+                    await handlePositionSelect(selectedPosition);
+                    setSelectedPosition(null);
+                  }
+                }}
+              >
+                <Text style={styles.changeButtonTextCustom}>Select</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
     );
+  };
+
+  // Filter events by search and tag
+  const getFilteredEvents = () => {
+    let filtered = events.filter(e => !e.canceled);
+    if (search.trim()) {
+      filtered = filtered.filter(e => e.title.toLowerCase().includes(search.trim().toLowerCase()));
+    }
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter(e => tagFilter.every(tag => (e.tags ?? []).includes(tag)));
+    }
+    // Sort by id (timestamp) descending so newest is first
+    filtered.sort((a, b) => Number(b.id) - Number(a.id));
+    return filtered;
   };
 
   return (
@@ -403,22 +445,51 @@ export default function VolunteerDashboard() {
         </View>
         <View>
           <Text style={styles.title}>Welcome, {user?.firstName || 'Volunteer'}!</Text>
-          <Text style={styles.subtitle}>Find and join events that match your interests</Text>
+          <Text style={styles.subtitle} numberOfLines={2} allowFontScaling={false}>Find and join events that match your interests</Text>
         </View>
       </View>
       <View style={styles.divider} />
       <View style={styles.container}>
+        {/* Search Bar */}
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search events by title..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#aaa"
+        />
+        {/* Tag Filter Bar */}
+        <ScrollView 
+        horizontal showsHorizontalScrollIndicator={false} 
+        style={styles.tagFilterBar} 
+        contentContainerStyle={styles.tagFilterBarContent}>
+          {TAG_OPTIONS.map(tag => (
+            <TouchableOpacity
+              key={tag}
+              style={[styles.tagBadge, tagFilter.includes(tag) && styles.tagBadgeSelected]}
+              onPress={() => {
+                if (tagFilter.includes(tag)) {
+                  setTagFilter(tagFilter.filter(t => t !== tag));
+                } else {
+                  setTagFilter([...tagFilter, tag]);
+                }
+              }}
+            >
+              <Text style={[styles.tagText, tagFilter.includes(tag) && styles.tagTextSelected]}>{tag}</Text>
+            </TouchableOpacity>
+          ))}
+          {tagFilter.length > 0 && (
+            <TouchableOpacity style={styles.clearTagsButton} onPress={() => setTagFilter([])}>
+              <Text style={styles.clearTagsText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
         <FlatList
-          data={events.filter(e => !e.canceled)}
+          data={getFilteredEvents()}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.eventContainer}>
-              <TouchableOpacity 
-                style={styles.eventCardContainer}
-                onPress={() => handleEventPress(item)}
-                activeOpacity={0.7}
-                disabled={item.canceled}
-              >
+              <View style={styles.eventCardContainer}>
                 <UnifiedEventCard
                   title={item.title}
                   date={item.date}
@@ -449,8 +520,19 @@ export default function VolunteerDashboard() {
                       />
                     </TouchableOpacity>
                   }
+                  actionButton={
+                    !item.canceled && (
+                      <TouchableOpacity
+                        style={styles.applyButton}
+                        onPress={() => handleEventPress(item)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.applyButtonText}>Apply</Text>
+                      </TouchableOpacity>
+                    )
+                  }
                 />
-              </TouchableOpacity>
+              </View>
             </View>
           )}
           contentContainerStyle={styles.eventsList}
@@ -463,32 +545,6 @@ export default function VolunteerDashboard() {
             </View>
           }
         />
-        {/* Prompt Modal */}
-        <Modal
-          visible={showPromptModal}
-          transparent
-          animationType="fade"
-        >
-          <View style={[styles.modalContainer, { justifyContent: 'center', alignItems: 'center' }]}> 
-            <View style={[styles.modalContent, { backgroundColor: 'white', minWidth: 300, alignItems: 'center' }]}> 
-              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20 }}>Do you want to register for this event?</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-                <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#62A0A5', padding: 12, borderRadius: 8, marginRight: 10, alignItems: 'center' }}
-                  onPress={() => handlePromptResponse('yes')}
-                >
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Yes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#ccc', padding: 12, borderRadius: 8, marginLeft: 10, alignItems: 'center' }}
-                  onPress={() => handlePromptResponse('no')}
-                >
-                  <Text style={{ color: '#333', fontWeight: 'bold' }}>No</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
         {renderPositionModal()}
       </View>
     </SafeAreaView>
@@ -500,12 +556,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFEAB8',
   },
+
   container: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 0,
     paddingBottom: 0,
   },
+
   headerCard: {
     backgroundColor: '#62A0A5',
     borderRadius: 25,
@@ -521,6 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 5,
   },
+
   headerIcon: {
     backgroundColor: '#FFF1C7',
     borderRadius: 24,
@@ -530,31 +589,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
+
   title: {
     fontSize: 26,
     fontWeight: 'bold',
     color: '#FFF1C7',
     marginBottom: 4,
   },
+  
   subtitle: {
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
   },
+
   divider: {
     height: 3,
     backgroundColor: '#62A0A5',
   },
+
   eventContainer: {
     width: '100%',
     marginBottom: 15,
   },
+
   eventCardContainer: {
     width: '100%',
   },
+
   eventCard: {
     width: '100%',
   },
+
   saveButton: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -565,15 +631,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+
   eventsList: {
     paddingTop: 20,
   },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 40,
   },
+
   emptyText: {
     textAlign: 'center',
     color: '#666',
@@ -581,53 +650,177 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontStyle: 'italic',
   },
-  modalContainer: {
+
+  modalContainerCustom: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    textAlign: 'center',
-    color: '#7F4701',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  positionsList: {
-    maxHeight: 300,
-  },
-  positionItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  positionItemText: {
-    fontSize: 16,
-    color: '#7F4701',
-  },
-  cancelButton: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+
+  modalContentCustom: {
+    backgroundColor: '#7BB1B7',
+    padding: 24,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderWidth: 3,
+    borderColor: '#7F4701',
     alignItems: 'center',
+    minHeight: 200,
   },
-  cancelButtonText: {
-    color: '#666',
+
+  modalTitleCustom: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 4,
+  },
+
+  modalSubtitleCustom: {
     fontSize: 16,
+    color: '#fff',
     fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.92,
+    marginBottom: 16,
+  },
+
+  categoryItemCustom: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFF1C7',
+    width: '100%',
+  },
+
+  categoryTextCustom: {
+    fontSize: 16,
+    color: '#FFF1C7',
+  },
+
+  selectedCategoryItemCustom: {
+    backgroundColor: 'rgb(113, 165, 174)',
+    borderRadius: 10,
+  },
+
+  selectedCategoryTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+  cancelButtonCustom: {
+    backgroundColor: '#ff6b6b',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+
+  cancelButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  changeButtonCustom: {
+    backgroundColor: '#7AA47D',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+
+  changeButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  searchBar: {
+    borderWidth: 2,
+    borderColor: '#7F4701',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    fontSize: 16,
+    marginBottom: 10,
+    marginTop: 15,
+    backgroundColor: '#fff',
+    color: '#333',
+  },
+
+  tagFilterBar: {
+    maxHeight: 44,
+    marginBottom: 10,
+  },
+
+  tagFilterBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    height: 44,
+    gap: 8,
+  },
+
+  tagBadge: {
+    borderWidth: 2,
+    backgroundColor: '#FEBD6B',
+    borderRadius: 20,
+    borderColor: '#7F4701',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginRight: 6,
+    marginBottom: 10,
+  },
+
+  tagBadgeSelected: {
+    backgroundColor: '#218686',
+  },
+
+  tagText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+
+  tagTextSelected: {
+    color: '#fff',
+  },
+
+  clearTagsButton: {
+    backgroundColor: '#eee',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+  
+  clearTagsText: {
+    color: '#7F4701',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+
+  applyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1C7',
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#7F4701',
+    height: 40,
+    width: 150,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  applyButtonText: {
+    color: '#7F4701',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 1,
   },
 });

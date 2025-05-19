@@ -22,6 +22,7 @@ interface UnifiedEventCardProps {
   showFullSlot?: boolean;
   style?: any;
   saveButton?: React.ReactNode;
+  actionButton?: React.ReactNode;
 }
 
 const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
@@ -44,6 +45,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
   showFullSlot = false,
   style,
   saveButton,
+  actionButton,
 }) => {
   return (
     <View style={[styles.eventCard, style]}>
@@ -57,7 +59,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
               onError={onImageError}
             />
             {canceled && (
-              <View style={styles.canceledBadgePhoto}>
+              <View style={[styles.canceledBadgePhoto, styles.leftBadge]}>
                 <Text style={styles.canceledBadgePhotoText}>Event Cancelled</Text>
               </View>
             )}
@@ -72,7 +74,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
               </View>
             )}
             {showFullSlot && !canceled && (
-              <View style={styles.fullSlotBadgePhoto}>
+              <View style={[styles.fullSlotBadgePhoto, styles.leftBadge]}>
                 <Text style={styles.fullSlotBadgePhotoText}>Full Slot</Text>
               </View>
             )}
@@ -86,7 +88,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
           <View style={styles.placeholderImage}>
             <Ionicons name="image-outline" size={40} color="#ccc" />
             {canceled && (
-              <View style={styles.canceledBadgePhoto}>
+              <View style={[styles.canceledBadgePhoto, styles.leftBadge]}>
                 <Text style={styles.canceledBadgePhotoText}>Event Cancelled</Text>
               </View>
             )}
@@ -101,7 +103,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
               </View>
             )}
             {showFullSlot && !canceled && (
-              <View style={styles.fullSlotBadgePhoto}>
+              <View style={[styles.fullSlotBadgePhoto, styles.leftBadge]}>
                 <Text style={styles.fullSlotBadgePhotoText}>Full Slot</Text>
               </View>
             )}
@@ -149,24 +151,53 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
         )}
         <View style={styles.dividerLine} />
         <View style={styles.infoRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="calendar" size={16} color="#62A0A5" style={styles.infoIcon} />
-            <Text style={styles.eventDate}>{date}</Text>
-          </View>
-          <View style={{ width: 16 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="time" size={16} color="#62A0A5" style={styles.infoIcon} />
-            <Text style={styles.eventTime}>{time}</Text>
-          </View>
+          <Ionicons name="calendar-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+          <Text style={styles.infoText}>{date}</Text>
         </View>
-        <View style={styles.infoRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="location" size={16} color="#7F4701" style={{ marginRight: 6 }} />
-            <Text style={styles.eventLocation}>{location}</Text>
+        {time && (
+          <View style={styles.infoRow}>
+            <Ionicons name="time-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{time}</Text>
           </View>
-        </View>
+        )}
+        {location && (
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={20} color="#7F4701" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{location}</Text>
+          </View>
+        )}
         {showFullSlot && !canceled && (
           null
+        )}
+        {actionButton && (
+          <View style={styles.actionButtonWrapper}>
+            {React.isValidElement(actionButton)
+              ? (typeof actionButton.props === 'object'
+                  ? React.cloneElement(
+                      actionButton as React.ReactElement<any>,
+                      {
+                        ...(actionButton.props as object),
+                        style: [styles.applyButtonUnified, (actionButton.props as any).style],
+                      },
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={20} color="#7F4701" style={{ marginRight: 8 }} />
+                        <Text style={styles.applyButtonTextUnified}>{(actionButton.props as any).children}</Text>
+                        <Ionicons name="checkmark-circle-outline" size={20} color="#7F4701" style={{ marginLeft: 8 }} />
+                      </>
+                    )
+                  : React.cloneElement(
+                      actionButton as React.ReactElement<any>,
+                      {
+                        style: styles.applyButtonUnified,
+                      },
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.applyButtonTextUnified}>Apply</Text>
+                      </>
+                    )
+                )
+              : actionButton}
+          </View>
         )}
       </View>
     </View>
@@ -175,7 +206,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
 
 const styles = StyleSheet.create({
   eventCard: {
-    backgroundColor: 'rgb(252, 252, 252)',
+    backgroundColor: 'rgb(255, 252, 236)',
     borderRadius: 25,
     borderColor: '#7F4701',
     marginBottom: 18,
@@ -260,17 +291,21 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: '#7F4701',
     marginVertical: 6,
+    marginBottom: 10,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    marginTop: 10,
     gap: 8,
   },
   infoIcon: {
-    marginRight: 6,
+    marginRight: 4,
+  },
+  infoText: {
     color: '#7F4701',
+    fontSize: 15,
+    flex: 1,
   },
   eventDate: {
     fontSize: 14,
@@ -305,7 +340,6 @@ const styles = StyleSheet.create({
   fullSlotBadgePhoto: {
     position: 'absolute',
     top: 10,
-    right: 10,
     backgroundColor: '#ff4444',
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -326,7 +360,6 @@ const styles = StyleSheet.create({
   canceledBadgePhoto: {
     position: 'absolute',
     top: 10,
-    right: 10,
     backgroundColor: '#ff4444',
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -349,6 +382,32 @@ const styles = StyleSheet.create({
     top: 10,
     right: 10,
     zIndex: 3,
+  },
+  leftBadge: {
+    left: 10,
+    right: undefined,
+  },
+  actionButtonWrapper: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 2,
+  },
+  applyButtonUnified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#62A0A5',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    height: 40,
+    width: 140,
+    justifyContent: 'center',
+  },
+  applyButtonTextUnified: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 1,
   },
 });
 
