@@ -51,8 +51,10 @@ export default function SavedEventsScreen() {
 
   const loadSavedEvents = async () => {
     try {
+      console.log('Loading saved events...');
       const stored = await AsyncStorage.getItem('savedEvents');
       let parsedEvents: Event[] = stored ? JSON.parse(stored) : [];
+      console.log('Found saved events:', parsedEvents.length);
       
       // Update events with current data from events storage
       const storedEvents = await AsyncStorage.getItem('events');
@@ -82,25 +84,9 @@ export default function SavedEventsScreen() {
           return savedEvent;
         });
       }
-
-      // Remove events that are already registered (pending or approved)
-      if (user) {
-        const [storedPendingVolunteers, storedVolunteers] = await Promise.all([
-          AsyncStorage.getItem('pendingVolunteers'),
-          AsyncStorage.getItem('volunteers'),
-        ]);
-        const pendingVolunteers: PendingVolunteer[] = storedPendingVolunteers ? JSON.parse(storedPendingVolunteers) : [];
-        const volunteers: Volunteer[] = storedVolunteers ? JSON.parse(storedVolunteers) : [];
-        const registeredIds = [
-          ...pendingVolunteers.filter(pv => pv.volunteerEmail === user.email && pv.status === 'pending').map(pv => pv.eventId),
-          ...volunteers.filter(v => v.email === user.email && v.status === 'active').flatMap(v => v.assignedEvents),
-        ];
-        setRegisteredEventIds(registeredIds);
-        // Remove registered events from savedEvents
-        parsedEvents = parsedEvents.filter(event => !registeredIds.includes(event.id));
-        await AsyncStorage.setItem('savedEvents', JSON.stringify(parsedEvents));
-      }
+      
       setSavedEvents(parsedEvents);
+      console.log('Updated saved events count:', parsedEvents.length);
     } catch (error) {
       console.error('Error loading saved events:', error);
     }
@@ -109,40 +95,33 @@ export default function SavedEventsScreen() {
   // Add focus listener to reload saved events when screen is focused
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Screen focused, reloading saved events');
       loadSavedEvents();
     });
 
     return unsubscribe;
   }, [navigation]);
 
-  // Add real-time updates
+  // Add real-time updates for saved events
   useEffect(() => {
     const checkForUpdates = async () => {
-      const stored = await AsyncStorage.getItem('savedEvents');
-      let parsedEvents: Event[] = stored ? JSON.parse(stored) : [];
-      if (user) {
-        const [storedPendingVolunteers, storedVolunteers] = await Promise.all([
-          AsyncStorage.getItem('pendingVolunteers'),
-          AsyncStorage.getItem('volunteers'),
-        ]);
-        const pendingVolunteers: PendingVolunteer[] = storedPendingVolunteers ? JSON.parse(storedPendingVolunteers) : [];
-        const volunteers: Volunteer[] = storedVolunteers ? JSON.parse(storedVolunteers) : [];
-        const registeredIds = [
-          ...pendingVolunteers.filter(pv => pv.volunteerEmail === user.email && pv.status === 'pending').map(pv => pv.eventId),
-          ...volunteers.filter(v => v.email === user.email && v.status === 'active').flatMap(v => v.assignedEvents),
-        ];
-        setRegisteredEventIds(registeredIds);
-        parsedEvents = parsedEvents.filter(event => !registeredIds.includes(event.id));
-        await AsyncStorage.setItem('savedEvents', JSON.stringify(parsedEvents));
-      }
-      if (JSON.stringify(parsedEvents) !== JSON.stringify(savedEvents)) {
-        setSavedEvents(parsedEvents);
+      try {
+        const stored = await AsyncStorage.getItem('savedEvents');
+        if (stored) {
+          const parsedEvents: Event[] = JSON.parse(stored);
+          if (JSON.stringify(parsedEvents) !== JSON.stringify(savedEvents)) {
+            console.log('Saved events changed, updating...');
+            setSavedEvents(parsedEvents);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
       }
     };
 
-    const interval = setInterval(checkForUpdates, 2000); // Check every 2 seconds
+    const interval = setInterval(checkForUpdates, 1000);
     return () => clearInterval(interval);
-  }, [savedEvents, user]);
+  }, [savedEvents]);
 
   const handleRemoveEvent = async (eventId: string) => {
     try {

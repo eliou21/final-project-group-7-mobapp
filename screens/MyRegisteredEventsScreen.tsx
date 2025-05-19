@@ -309,7 +309,11 @@ export default function MyRegisteredEventsScreen() {
       </View>
       <View style={styles.bannerDivider} />
       <View style={styles.container}>
-        <View style={styles.sortRow}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sortRowContainer}
+        >
           <TouchableOpacity
             style={[styles.sortButton, sortStatus === 'all' && styles.sortButtonActive]}
             onPress={() => setSortStatus('all')}
@@ -340,7 +344,7 @@ export default function MyRegisteredEventsScreen() {
           >
             <Text style={[styles.sortButtonText, sortStatus === 'cancelled' && styles.sortButtonTextActive]}>Cancelled</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
         {getDisplayEvents().length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={60} color="#ccc" />
@@ -433,6 +437,8 @@ export default function MyRegisteredEventsScreen() {
               </View>
             )}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
           />
         )}
         {renderEditModal()}
@@ -489,19 +495,24 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  sortRow: {
+  sortRowContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     gap: 8,
+    marginBottom: 10,
   },
   sortButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#FFF1C7',
     borderWidth: 2,
     borderColor: '#7F4701',
+    minWidth: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
   },
   sortButtonActive: {
     backgroundColor: '#62A0A5',
@@ -509,10 +520,13 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     color: '#7F4701',
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'center',
   },
   sortButtonTextActive: {
     color: '#FFF1C7',
+    fontWeight: '600',
   },
   card: {
     backgroundColor: '#7BB1B7',
