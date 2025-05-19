@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, SafeAreaView, TouchableOpacity, Alert, TextInput, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UnifiedEventCard from '../components/UnifiedEventCard';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,11 +43,23 @@ type Volunteer = {
   profilePicture?: string;
 };
 
+const TAG_OPTIONS = [
+  'Environmental',
+  'Animal',
+  'Social Work',
+  'Healthcare',
+  'Blood Donation',
+  'Sports',
+  'Others',
+];
+
 export default function SavedEventsScreen() {
   const [savedEvents, setSavedEvents] = useState<Event[]>([]);
   const { user } = useAuth();
   const [registeredEventIds, setRegisteredEventIds] = useState<string[]>([]);
   const navigation = useNavigation();
+  const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
 
   const loadSavedEvents = async () => {
     try {
@@ -228,13 +240,62 @@ export default function SavedEventsScreen() {
     }
   };
 
+  // Filter saved events by search and tag
+  const getFilteredEvents = () => {
+    let filtered = savedEvents;
+    if (search.trim()) {
+      filtered = filtered.filter(e => e.title.toLowerCase().includes(search.trim().toLowerCase()));
+    }
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter(e => tagFilter.every(tag => (e.tags ?? []).includes(tag)));
+    }
+    // Sort by id (timestamp) descending so newest is first
+    filtered.sort((a, b) => Number(b.id) - Number(a.id));
+    return filtered;
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <HeaderBanner />
+      <View style={styles.bannerHeader}>
+        <Text style={styles.bannerTitle}>Saved Events</Text>
+        <Text style={styles.bannerSubtitle}>View and manage your saved events</Text>
+      </View>
+      <View style={styles.divider} />
       <View style={styles.container}>
-        <Text style={styles.title}>Saved Events</Text>
+        {/* Search Bar */}
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search events by title..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#aaa"
+        />
+        {/* Tag Filter Bar */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagFilterBar} contentContainerStyle={styles.tagFilterBarContent}>
+          {TAG_OPTIONS.map(tag => (
+            <TouchableOpacity
+              key={tag}
+              style={[styles.tagBadge, tagFilter.includes(tag) && styles.tagBadgeSelected]}
+              onPress={() => {
+                if (tagFilter.includes(tag)) {
+                  setTagFilter(tagFilter.filter(t => t !== tag));
+                } else {
+                  setTagFilter([...tagFilter, tag]);
+                }
+              }}
+            >
+              <Text style={[styles.tagText, tagFilter.includes(tag) && styles.tagTextSelected]}>{tag}</Text>
+            </TouchableOpacity>
+          ))}
+          {tagFilter.length > 0 && (
+            <TouchableOpacity style={styles.clearTagsButton} onPress={() => setTagFilter([])}>
+              <Text style={styles.clearTagsText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
         <FlatList
-          data={savedEvents}
+          data={getFilteredEvents()}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.eventContainer}>
@@ -275,6 +336,7 @@ export default function SavedEventsScreen() {
               <Text style={styles.emptyText}>No saved events</Text>
             </View>
           }
+          style={{ flex: 1 }}
         />
       </View>
     </SafeAreaView>
@@ -286,16 +348,18 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#FFEAB8' 
   },
-  container: { 
-    flex: 1, 
-    padding: 20 
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 10, 
-    textAlign: 'center',
-    color: '#7F4701'
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 2,
+    textAlign: 'left',
   },
   eventContainer: {
     position: 'relative',
@@ -331,5 +395,100 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     fontStyle: 'italic',
+  },
+  bannerHeader: {
+    backgroundColor: '#62A0A5',
+    paddingTop: 14,
+    paddingBottom: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderRadius: 25,
+    marginBottom: 12,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    maxWidth: 420,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  bannerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF1C7',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  bannerSubtitle: {
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.92,
+  },
+  divider: {
+    height: 3,
+    backgroundColor: '#62A0A5',
+    borderRadius: 2,
+    width: '100%',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  searchBar: {
+    borderWidth: 2,
+    borderColor: '#7F4701',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    fontSize: 16,
+    marginBottom: 10,
+    marginTop: 5,
+    backgroundColor: '#fff',
+    color: '#333',
+  },
+  tagFilterBar: {
+    marginBottom: 10,
+    maxHeight: 44,
+  },
+  tagFilterBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    gap: 8,
+  },
+  tagBadge: {
+    borderWidth: 2,
+    backgroundColor: '#FEBD6B',
+    borderRadius: 20,
+    borderColor: '#7F4701',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  tagBadgeSelected: {
+    backgroundColor: '#218686',
+  },
+  tagText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  tagTextSelected: {
+    color: '#fff',
+  },
+  clearTagsButton: {
+    backgroundColor: '#eee',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+  clearTagsText: {
+    color: '#7F4701',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 }); 

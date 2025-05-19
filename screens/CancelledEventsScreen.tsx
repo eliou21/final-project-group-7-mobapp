@@ -42,7 +42,7 @@ export default function CancelledEventsScreen() {
   const [imageErrors, setImageErrors] = useState(new Set());
   const [activeTab, setActiveTab] = useState<'cancelled' | 'full'>('cancelled');
   const [selectedEventVolunteers, setSelectedEventVolunteers] = useState<SelectedEventVolunteers | null>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const tabAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function CancelledEventsScreen() {
   useEffect(() => {
     Animated.timing(tabAnim, {
       toValue: activeTab === 'cancelled' ? 0 : 1,
-      duration: 220,
+      duration: 200,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: false,
     }).start();
@@ -168,22 +168,34 @@ export default function CancelledEventsScreen() {
       <HeaderBanner />
       <View style={styles.bannerHeader}>
         <Text style={styles.bannerTitle}>Cancelled & Full Events</Text>
-        <Text style={styles.bannerSubtitle}>View events that are cancelled or have filled volunteer slots</Text>
+        <Text style={styles.bannerSubtitle} numberOfLines={2} allowFontScaling={false}>View events that are cancelled or have filled volunteer slots</Text>
       </View>
       <View style={styles.bannerDivider} />
       <View style={styles.container}>
         <View style={styles.tabBar}>
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              {
+                left: tabAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['9%', '50%'],
+                }),
+                width: '32%',
+              },
+            ]}
+          />
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'cancelled' ? styles.activeTab : styles.inactiveTab]}
+            style={[styles.tab, activeTab === 'cancelled' && styles.activeTab]}
             onPress={() => setActiveTab('cancelled')}
           >
-            <Text style={[styles.tabText, activeTab === 'cancelled' ? styles.activeTabText : styles.inactiveTabText]}>Cancelled Events</Text>
+            <Text style={[styles.tabText, activeTab === 'cancelled' && styles.activeTabText]}>Cancelled Events</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'full' ? styles.activeTab : styles.inactiveTab]}
+            style={[styles.tab, activeTab === 'full' && styles.activeTab]}
             onPress={() => setActiveTab('full')}
           >
-            <Text style={[styles.tabText, activeTab === 'full' ? styles.activeTabText : styles.inactiveTabText]}>Full Volunteer Slots</Text>
+            <Text style={[styles.tabText, activeTab === 'full' && styles.activeTabText]}>Full Volunteer Slots</Text>
           </TouchableOpacity>
         </View>
         {sortedEvents.length === 0 ? (
@@ -286,6 +298,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     opacity: 0.92,
+    flexWrap: 'wrap',
+    width: '100%',
   },
   bannerDivider: {
     height: 3,
@@ -296,48 +310,40 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    marginBottom: 15,
+    backgroundColor: '#62A0A5',
     borderRadius: 25,
     padding: 4,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#7F4701',
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 0,
+    position: 'relative',
+    height: 48,
   },
   tab: {
     flex: 1,
-    minHeight: 40,
     paddingVertical: 10,
-    paddingHorizontal: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    marginHorizontal: 2,
-    borderWidth: 2,
-    borderColor: '#7F4701',
-  },
-  activeTab: {
-    backgroundColor: '#62A0A5',
-    borderColor: '#62A0A5',
-    zIndex: 2,
-  },
-  inactiveTab: {
-    backgroundColor: '#FFF1C7',
-    borderColor: '#7F4701',
+    borderRadius: 25,
     zIndex: 1,
   },
+  activeTab: {
+    backgroundColor: '#FEBD6B',
+  },
   tabText: {
+    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
   },
   activeTabText: {
-    color: '#FFF1C7',
+    color: '#fff',
   },
-  inactiveTabText: {
-    color: '#7F4701',
+  tabIndicator: {
+    position: 'absolute',
+    top: 4,
+    width: '32%',
+    height: 40,
+    backgroundColor: '#FEBD6B',
+    borderRadius: 20,
+    zIndex: 0,
   },
   eventsList: {
     paddingBottom: 20,

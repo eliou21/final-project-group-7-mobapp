@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import HeaderBanner from '../components/HeaderBanner';
 
 export default function ProfileScreen() {
   const { user, updateUser } = useAuth();
@@ -148,136 +149,133 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>Profile</Text>
-
+    <SafeAreaView style={styles.safeAreaCustom}>
+      <HeaderBanner />
+      <ScrollView style={styles.containerCustom} contentContainerStyle={{ paddingBottom: 30 }}>
+        <View style={styles.bannerHeader}>
+          <Text style={styles.bannerTitle}>Profile</Text>
+          <Text style={styles.bannerSubtitle}>View and update your profile information</Text>
+        </View>
+        <View style={styles.dividerCustom} />
         {/* Profile Picture Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile Picture</Text>
-          <View style={styles.profileImageContainer}>
+        <View style={styles.sectionCustom}>
+          <Text style={styles.sectionTitleCustom}>Profile Picture</Text>
+          <View style={styles.profileImageContainerCustom}>
             {profilePicture ? (
-              <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+              <Image source={{ uri: profilePicture }} style={styles.profileImageCustom} />
             ) : (
-              <View style={[styles.profileImage, styles.placeholderImage]}>
+              <View style={[styles.profileImageCustom, styles.placeholderImageCustom]}>
                 <Ionicons name="person" size={50} color="#ccc" />
               </View>
             )}
-            <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
+            <TouchableOpacity style={styles.changePhotoButtonCustom} onPress={pickImage}>
+              <Text style={styles.changePhotoTextCustom}>Change Photo</Text>
             </TouchableOpacity>
           </View>
         </View>
-
         {/* User Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>First Name:</Text>
-            <Text style={styles.value}>{user?.firstName}</Text>
+        <View style={styles.sectionCustom}>
+          <Text style={styles.sectionTitleCustom}>Personal Information</Text>
+          <View style={styles.infoRowCustom}>
+            <Text style={styles.labelCustom}>First Name:</Text>
+            <Text style={styles.valueCustom}>{user?.firstName}</Text>
           </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Last Name:</Text>
-            <Text style={styles.value}>{user?.lastName}</Text>
+          <View style={styles.infoRowCustom}>
+            <Text style={styles.labelCustom}>Last Name:</Text>
+            <Text style={styles.valueCustom}>{user?.lastName}</Text>
           </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Email:</Text>
-            <Text style={styles.value}>{user?.email}</Text>
+          <View style={styles.infoRowCustom}>
+            <Text style={styles.labelCustom}>Email:</Text>
+            <Text style={styles.valueCustom}>{user?.email}</Text>
           </View>
-
           {isEditing ? (
             <>
               <TextInput
-                style={styles.input}
+                style={styles.inputCustom}
                 placeholder="Username"
                 value={username}
                 onChangeText={setUsername}
               />
               <TextInput
-                style={styles.input}
+                style={styles.inputCustom}
                 placeholder="Phone"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
               />
-              <View style={styles.buttonRow}>
+              <View style={styles.buttonRowCustom}>
                 <TouchableOpacity
-                  style={[styles.button, styles.saveButton]}
+                  style={[styles.buttonCustom, styles.saveButtonCustom]}
                   onPress={handleUpdateProfile}
                 >
-                  <Text style={styles.buttonText}>Save Changes</Text>
+                  <Text style={styles.buttonTextCustom}>Save Changes</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[styles.buttonCustom, styles.cancelButtonCustom]}
                   onPress={() => {
                     setIsEditing(false);
                     setUsername(user?.username || '');
                     setPhone(user?.phone || '');
                   }}
                 >
-                  <Text style={styles.buttonText}>Cancel</Text>
+                  <Text style={styles.buttonTextCustom}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </>
           ) : (
             <>
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Username:</Text>
-                <Text style={styles.value}>{user?.username || 'Not set'}</Text>
+              <View style={styles.infoRowCustom}>
+                <Text style={styles.labelCustom}>Username:</Text>
+                <Text style={styles.valueCustom}>{user?.username || 'Not set'}</Text>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Phone:</Text>
-                <Text style={styles.value}>{user?.phone || 'Not set'}</Text>
+              <View style={styles.infoRowCustom}>
+                <Text style={styles.labelCustom}>Phone:</Text>
+                <Text style={styles.valueCustom}>{user?.phone || 'Not set'}</Text>
               </View>
               <TouchableOpacity
-                style={[styles.button, styles.editButton]}
+                style={[styles.buttonCustom, styles.editButtonCustom]}
                 onPress={() => setIsEditing(true)}
               >
-                <Text style={styles.buttonText}>Edit Profile</Text>
+                <Text style={styles.buttonTextCustom}>Edit Profile</Text>
               </TouchableOpacity>
             </>
           )}
         </View>
-
         {/* Change Password Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Change Password</Text>
-          
+        <View style={styles.sectionCustom}>
+          <Text style={styles.sectionTitleCustom}>Change Password</Text>
           {isChangingPassword ? (
             <>
               <TextInput
-                style={styles.input}
+                style={styles.inputCustom}
                 placeholder="Current Password"
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 secureTextEntry
               />
               <TextInput
-                style={styles.input}
+                style={styles.inputCustom}
                 placeholder="New Password"
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry
               />
               <TextInput
-                style={styles.input}
+                style={styles.inputCustom}
                 placeholder="Confirm New Password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
               />
-              <View style={styles.buttonRow}>
+              <View style={styles.buttonRowCustom}>
                 <TouchableOpacity
-                  style={[styles.button, styles.saveButton]}
+                  style={[styles.buttonCustom, styles.saveButtonCustom]}
                   onPress={handleChangePassword}
                 >
-                  <Text style={styles.buttonText}>Update Password</Text>
+                  <Text style={styles.buttonTextCustom}>Update</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[styles.buttonCustom, styles.cancelButtonCustom]}
                   onPress={() => {
                     setIsChangingPassword(false);
                     setCurrentPassword('');
@@ -285,16 +283,16 @@ export default function ProfileScreen() {
                     setConfirmPassword('');
                   }}
                 >
-                  <Text style={styles.buttonText}>Cancel</Text>
+                  <Text style={styles.buttonTextCustom}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </>
           ) : (
             <TouchableOpacity
-              style={[styles.button, styles.editButton]}
+              style={[styles.buttonCustom, styles.editButtonCustom]}
               onPress={() => setIsChangingPassword(true)}
             >
-              <Text style={styles.buttonText}>Change Password</Text>
+              <Text style={styles.buttonTextCustom}>Change Password</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -304,113 +302,165 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  safeAreaCustom: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFEAB8',
   },
-  container: {
+  containerCustom: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
-  title: {
+  bannerHeader: {
+    backgroundColor: '#62A0A5',
+    paddingTop: 14,
+    paddingBottom: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderRadius: 25,
+    marginBottom: 12,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    maxWidth: 420,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  bannerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    color: '#FFF1C7',
+    marginBottom: 2,
     textAlign: 'center',
   },
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
+  bannerSubtitle: {
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.92,
+  },
+  dividerCustom: {
+    height: 3,
+    backgroundColor: '#62A0A5',
+    marginBottom: 10,
+    borderRadius: 2,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  sectionCustom: {
+    backgroundColor: 'rgb(255, 252, 236)',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#7F4701',
+    padding: 22,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
     elevation: 3,
   },
-  sectionTitle: {
+  sectionTitleCustom: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#333',
+    color: '#7F4701',
   },
-  infoRow: {
+  infoRowCustom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#7F4701',
   },
-  label: {
+  labelCustom: {
     fontSize: 16,
-    color: '#666',
+    color: '#7F4701',
   },
-  value: {
+  valueCustom: {
     fontSize: 16,
-    color: '#333',
+    color: '#7F4701',
     fontWeight: '500',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+  inputCustom: {
+    borderWidth: 2,
+    borderColor: '#7F4701',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 15,
     fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
   },
-  buttonRow: {
+  buttonRowCustom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
   },
-  button: {
+  buttonCustom: {
     flex: 1,
-    padding: 15,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 12,
     alignItems: 'center',
+    marginTop: 0,
   },
-  editButton: {
+  editButtonCustom: {
     backgroundColor: '#62A0A5',
+    borderWidth: 2,
+    borderColor: '#fff',
+    marginTop: 10,
   },
-  saveButton: {
+  saveButtonCustom: {
     backgroundColor: '#62A0A5',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  cancelButton: {
+  cancelButtonCustom: {
     backgroundColor: '#ff6b6b',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  buttonText: {
+  buttonTextCustom: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  profileImageContainer: {
+  profileImageContainerCustom: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 6,
+    marginBottom: 0,
   },
-  profileImage: {
-    width: 150,
-    height: 150,
+  profileImageCustom: {
+    width: 120,
+    height: 120,
     borderRadius: 75,
-    marginBottom: 15,
+    marginBottom: 8,
+    borderWidth: 3,
+    borderColor: '#7F4701',
   },
-  placeholderImage: {
+  placeholderImageCustom: {
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
   },
-  changePhotoButton: {
+  changePhotoButtonCustom: {
     backgroundColor: '#62A0A5',
+    borderRadius: 12,
     paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  changePhotoText: {
+  changePhotoTextCustom: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
