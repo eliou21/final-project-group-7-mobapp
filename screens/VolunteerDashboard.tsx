@@ -61,13 +61,29 @@ export default function VolunteerDashboard() {
         AsyncStorage.getItem('volunteers'),
       ]);
       
-      if (storedEvents) {
-        setEvents(JSON.parse(storedEvents));
+      if (storedEvents && storedVolunteers) {
+        const parsedEvents = JSON.parse(storedEvents);
+        const volunteers = JSON.parse(storedVolunteers);
+        
+        // Calculate volunteer counts for each event
+        const eventsWithVolunteers = parsedEvents.map((event: Event) => {
+          const eventVolunteers = volunteers.filter((v: Volunteer) => 
+            v.assignedEvents && v.assignedEvents.includes(event.id)
+          );
+          return {
+            ...event,
+            currentVolunteers: eventVolunteers.length,
+            maxVolunteers: event.maxVolunteers || 10,
+          };
+        });
+        setEvents(eventsWithVolunteers);
       }
+      
       if (savedEvents) {
         const parsedSavedEvents = JSON.parse(savedEvents);
         setSavedIds(parsedSavedEvents.map((e: Event) => e.id));
       }
+      
       if (storedVolunteers) {
         setVolunteers(JSON.parse(storedVolunteers));
       }
@@ -76,31 +92,83 @@ export default function VolunteerDashboard() {
     }
   };
 
+  // Function to update volunteer count for a specific event
+  const updateEventVolunteerCount = async (eventId: string) => {
+    try {
+      const [storedEvents, storedVolunteers] = await Promise.all([
+        AsyncStorage.getItem('events'),
+        AsyncStorage.getItem('volunteers')
+      ]);
+
+      if (storedEvents && storedVolunteers) {
+        const parsedEvents = JSON.parse(storedEvents);
+        const volunteers = JSON.parse(storedVolunteers);
+        
+        // Find the specific event and update its volunteer count
+        const updatedEvents = parsedEvents.map((event: Event) => {
+          if (event.id === eventId) {
+            const eventVolunteers = volunteers.filter((v: Volunteer) => 
+              v.assignedEvents && v.assignedEvents.includes(eventId)
+            );
+            return {
+              ...event,
+              currentVolunteers: eventVolunteers.length,
+              maxVolunteers: event.maxVolunteers || 10,
+            };
+          }
+          return event;
+        });
+
+        // Update events in state and storage
+        setEvents(updatedEvents);
+        await AsyncStorage.setItem('events', JSON.stringify(updatedEvents));
+      }
+    } catch (error) {
+      console.error('Error updating volunteer count:', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
-  // Add real-time updates for saved events
+  // Add real-time updates for volunteer counts
   useEffect(() => {
-    const checkForUpdates = async () => {
+    const checkForVolunteerUpdates = async () => {
       try {
-        const savedEvents = await AsyncStorage.getItem('savedEvents');
-        if (savedEvents) {
-          const parsedSavedEvents = JSON.parse(savedEvents);
-          const newSavedIds = parsedSavedEvents.map((e: Event) => e.id);
-          if (JSON.stringify(newSavedIds) !== JSON.stringify(savedIds)) {
-            console.log('Updating saved IDs:', newSavedIds);
-            setSavedIds(newSavedIds);
-          }
+        const [storedEvents, storedVolunteers] = await Promise.all([
+          AsyncStorage.getItem('events'),
+          AsyncStorage.getItem('volunteers')
+        ]);
+
+        if (storedEvents && storedVolunteers) {
+          const parsedEvents = JSON.parse(storedEvents);
+          const volunteers = JSON.parse(storedVolunteers);
+          
+          // Update volunteer counts for each event
+          const eventsWithVolunteers = parsedEvents.map((event: Event) => {
+            const eventVolunteers = volunteers.filter((v: Volunteer) => 
+              v.assignedEvents && v.assignedEvents.includes(event.id)
+            );
+            return {
+              ...event,
+              currentVolunteers: eventVolunteers.length,
+              maxVolunteers: event.maxVolunteers || 10,
+            };
+          });
+
+          // Update events state if there are changes
+          setEvents(eventsWithVolunteers);
         }
       } catch (error) {
-        console.error('Error checking for updates:', error);
+        console.error('Error checking for volunteer updates:', error);
       }
     };
 
-    const interval = setInterval(checkForUpdates, 2000);
+    // Check for updates every second
+    const interval = setInterval(checkForVolunteerUpdates, 1000);
     return () => clearInterval(interval);
-  }, [savedIds]);
+  }, []);
 
   const handleSave = async (event: Event) => {
     try {
@@ -109,7 +177,9 @@ export default function VolunteerDashboard() {
       let savedEvents: Event[] = saved ? JSON.parse(saved) : [];
       console.log('Current saved events:', savedEvents.length);
       
-      if (!savedEvents.find(e => e.id === event.id)) {
+      const existingEventIndex = savedEvents.findIndex(e => e.id === event.id);
+      
+      if (existingEventIndex === -1) {
         // Save the complete event data
         const eventToSave = {
           ...event,
@@ -133,7 +203,7 @@ export default function VolunteerDashboard() {
         console.log('Event saved successfully');
       } else {
         // Remove from saved events if already saved
-        savedEvents = savedEvents.filter(e => e.id !== event.id);
+        savedEvents.splice(existingEventIndex, 1);
         console.log('Removing event from saved events');
         await AsyncStorage.setItem('savedEvents', JSON.stringify(savedEvents));
         setSavedIds(prev => prev.filter(id => id !== event.id));
@@ -148,6 +218,28 @@ export default function VolunteerDashboard() {
       console.error('Error saving event:', error);
     }
   };
+
+  // Add real-time updates for saved events
+  useEffect(() => {
+    const checkForSavedUpdates = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('savedEvents');
+        if (saved) {
+          const savedEvents = JSON.parse(saved);
+          const newSavedIds = savedEvents.map((e: Event) => e.id);
+          if (JSON.stringify(newSavedIds) !== JSON.stringify(savedIds)) {
+            console.log('Updating saved IDs:', newSavedIds);
+            setSavedIds(newSavedIds);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for saved updates:', error);
+      }
+    };
+
+    const interval = setInterval(checkForSavedUpdates, 1000);
+    return () => clearInterval(interval);
+  }, [savedIds]);
 
   const checkVolunteerStatus = async (eventId: string) => {
     try {
@@ -237,6 +329,9 @@ export default function VolunteerDashboard() {
       // Add to pending volunteers
       pendingVolunteers.push(newVolunteer);
       await AsyncStorage.setItem('pendingVolunteers', JSON.stringify(pendingVolunteers));
+
+      // Update the volunteer count for this event
+      await updateEventVolunteerCount(selectedEvent.id);
 
       Alert.alert(
         'Success', 
@@ -359,6 +454,8 @@ export default function VolunteerDashboard() {
             </View>
           )}
           contentContainerStyle={styles.eventsList}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={60} color="#ccc" />
