@@ -118,12 +118,45 @@ export default function SavedEventsScreen() {
   useEffect(() => {
     const checkForUpdates = async () => {
       try {
-        const stored = await AsyncStorage.getItem('savedEvents');
-        if (stored) {
-          const parsedEvents: Event[] = JSON.parse(stored);
-          if (JSON.stringify(parsedEvents) !== JSON.stringify(savedEvents)) {
+        const [storedSavedEvents, storedEvents] = await Promise.all([
+          AsyncStorage.getItem('savedEvents'),
+          AsyncStorage.getItem('events')
+        ]);
+
+        if (storedSavedEvents && storedEvents) {
+          const parsedSavedEvents: Event[] = JSON.parse(storedSavedEvents);
+          const currentEvents: Event[] = JSON.parse(storedEvents);
+
+          // Update saved events with current data while preserving canceled status
+          const updatedEvents = parsedSavedEvents.map(savedEvent => {
+            const currentEvent = currentEvents.find(e => e.id === savedEvent.id);
+            if (currentEvent) {
+              return {
+                ...savedEvent,
+                ...currentEvent,
+                // Preserve saved event data
+                id: savedEvent.id,
+                title: savedEvent.title,
+                date: savedEvent.date,
+                time: savedEvent.time,
+                description: savedEvent.description,
+                location: savedEvent.location,
+                coverPhoto: savedEvent.coverPhoto,
+                tags: savedEvent.tags || [],
+                volunteerCategories: savedEvent.volunteerCategories || [],
+                currentVolunteers: currentEvent.currentVolunteers,
+                maxVolunteers: currentEvent.maxVolunteers,
+                // Preserve the canceled status from the current event
+                canceled: currentEvent.canceled || false
+              };
+            }
+            return savedEvent;
+          });
+
+          // Only update if there are actual changes
+          if (JSON.stringify(updatedEvents) !== JSON.stringify(savedEvents)) {
             console.log('Saved events changed, updating...');
-            setSavedEvents(parsedEvents);
+            setSavedEvents(updatedEvents);
           }
         }
       } catch (error) {

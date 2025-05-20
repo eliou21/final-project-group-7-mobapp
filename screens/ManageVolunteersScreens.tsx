@@ -648,46 +648,46 @@ export default function ManageVolunteersScreen() {
       <Modal
         visible={!!editPositionModal}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => { setEditPositionModal(null); setSelectedEditPosition(''); }}
       >
         <View style={styles.modalOverlay}>
           {editPositionModal && (
-            <View style={[styles.profileModalCard, { padding: 20, maxWidth: 350 }]}> 
-              <Text style={[styles.modalTitle, { fontSize: 22 }]}>Edit Position</Text>
-              <Text style={{ color: '#7F4701', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
+            <View style={[styles.profileModalCard, { backgroundColor: '#7BB1B7' }]}>
+              <Text style={[styles.modalTitle, { color: '#FFF1C7' }]}>Edit Position</Text>
+              <Text style={{ color: '#FFF1C7', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
                 {editPositionModal.volunteer.name}
               </Text>
-              <Text style={{ color: '#7F4701', marginBottom: 10, textAlign: 'center' }}>
+              <Text style={{ color: '#FFF1C7', marginBottom: 10, textAlign: 'center' }}>
                 {getEventTitle(editPositionModal.eventId)}
               </Text>
-              {editPositionModal.positions.map(pos => (
+              <ScrollView style={{ maxHeight: 300, width: '100%' }}>
+                {editPositionModal.positions.map(pos => (
+                  <TouchableOpacity
+                    key={pos}
+                    style={[
+                      styles.profileEventRow,
+                      selectedEditPosition === pos && { backgroundColor: 'rgb(113, 165, 174)', borderRadius: 10 }
+                    ]}
+                    onPress={() => setSelectedEditPosition(pos)}
+                  >
+                    <Text style={[
+                      styles.profileEventTitle,
+                      { color: '#FFF1C7' },
+                      selectedEditPosition === pos && { color: '#fff', fontWeight: 'bold' }
+                    ]}>{pos}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
                 <TouchableOpacity
-                  key={pos}
-                  style={{
-                    backgroundColor: selectedEditPosition === pos ? '#62A0A5' : '#FFF1C7',
-                    borderColor: '#7F4701',
-                    borderWidth: 2,
-                    borderRadius: 16,
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    marginVertical: 5,
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setSelectedEditPosition(pos)}
+                  style={[styles.editButton, { backgroundColor: '#ff6b6b', flex: 1 }]}
+                  onPress={() => { setEditPositionModal(null); setSelectedEditPosition(''); }}
                 >
-                  <Text style={{ color: selectedEditPosition === pos ? '#fff' : '#7F4701', fontWeight: 'bold', fontSize: 16 }}>{pos}</Text>
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18 }}>
                 <TouchableOpacity
-                  style={{
-                    backgroundColor: '#62A0A5',
-                    borderRadius: 16,
-                    paddingVertical: 10,
-                    paddingHorizontal: 24,
-                    marginHorizontal: 8,
-                  }}
+                  style={[styles.editButton, { backgroundColor: '#7AA47D', flex: 1 }]}
                   onPress={async () => {
                     if (!selectedEditPosition) return;
                     // Update volunteer's position for this event
@@ -724,18 +724,6 @@ export default function ManageVolunteersScreen() {
                   }}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: '#ff6b6b',
-                    borderRadius: 16,
-                    paddingVertical: 10,
-                    paddingHorizontal: 24,
-                    marginHorizontal: 8,
-                  }}
-                  onPress={() => { setEditPositionModal(null); setSelectedEditPosition(''); }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1210,5 +1198,79 @@ const styles = StyleSheet.create({
     width: '100%',
     marginVertical: 2,
     alignSelf: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxWidth: 400,
+  },
+  categoryItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFF1C7',
+    width: '100%',
+  },
+  categoryText: {
+    fontSize: 16,
+    color: '#FFF1C7',
+  },
+  selectedCategoryItem: {
+    backgroundColor: 'rgb(113, 165, 174)',
+    borderRadius: 10,
+  },
+  selectedCategoryText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  cancelButtonCustom: {
+    backgroundColor: '#ff6b6b',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+  cancelButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  changeButtonCustom: {
+    backgroundColor: '#7AA47D',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+  changeButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  editButton: {
+    backgroundColor: '#FFF1C7',
+    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 0,
+    borderWidth: 2,
+    borderColor: '#7F4701',
+    minWidth: 0,
+    alignSelf: 'center',
+    marginVertical: 4,
   },
 });

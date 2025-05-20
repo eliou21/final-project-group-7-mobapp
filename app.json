@@ -14,10 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ivolunteer.app",
-      "config": {
-        "googleMapsApiKey": "YOUR_IOS_API_KEY"
-      }
+      "bundleIdentifier": "com.ivolunteer.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,12 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ivolunteer.app",
-      "config": {
-        "googleMaps": {
-          "apiKey": "YOUR_ANDROID_API_KEY"
-        }
-      }
+      "package": "com.ivolunteer.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

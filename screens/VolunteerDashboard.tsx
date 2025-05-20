@@ -14,6 +14,10 @@ type Event = {
   time: string;
   description: string;
   location: string;
+  locationCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   coverPhoto?: string;
   volunteerCategories: string[];
   canceled?: boolean;
@@ -423,13 +427,19 @@ export default function VolunteerDashboard() {
 
   // Filter events by search and tag
   const getFilteredEvents = () => {
+    // First filter out canceled events
     let filtered = events.filter(e => !e.canceled);
+    
+    // Then apply search filter
     if (search.trim()) {
       filtered = filtered.filter(e => e.title.toLowerCase().includes(search.trim().toLowerCase()));
     }
+    
+    // Then apply tag filter
     if (tagFilter.length > 0) {
       filtered = filtered.filter(e => tagFilter.every(tag => (e.tags ?? []).includes(tag)));
     }
+    
     // Sort by id (timestamp) descending so newest is first
     filtered.sort((a, b) => Number(b.id) - Number(a.id));
     return filtered;
@@ -459,10 +469,7 @@ export default function VolunteerDashboard() {
           placeholderTextColor="#aaa"
         />
         {/* Tag Filter Bar */}
-        <ScrollView 
-        horizontal showsHorizontalScrollIndicator={false} 
-        style={styles.tagFilterBar} 
-        contentContainerStyle={styles.tagFilterBarContent}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagFilterBar} contentContainerStyle={styles.tagFilterBarContent}>
           {TAG_OPTIONS.map(tag => (
             <TouchableOpacity
               key={tag}
@@ -504,6 +511,7 @@ export default function VolunteerDashboard() {
                   canceled={item.canceled}
                   showFullSlot={!item.canceled && (item.currentVolunteers ?? 0) >= (item.maxVolunteers ?? 0)}
                   style={styles.eventCard}
+                  locationCoordinates={item.locationCoordinates}
                   saveButton={
                     <TouchableOpacity
                       onPress={(e) => {
@@ -754,15 +762,14 @@ const styles = StyleSheet.create({
   },
 
   tagFilterBar: {
-    maxHeight: 44,
     marginBottom: 10,
+    maxHeight: 44,
   },
 
   tagFilterBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 2,
-    height: 44,
     gap: 8,
   },
 
@@ -775,6 +782,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 6,
     marginBottom: 10,
+    marginTop: 10,
+    height: 35,
   },
 
   tagBadgeSelected: {

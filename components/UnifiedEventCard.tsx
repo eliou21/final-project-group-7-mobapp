@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps';
 
 interface UnifiedEventCardProps {
   title: string;
@@ -23,6 +24,10 @@ interface UnifiedEventCardProps {
   style?: any;
   saveButton?: React.ReactNode;
   actionButton?: React.ReactNode;
+  locationCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
@@ -46,7 +51,50 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
   style,
   saveButton,
   actionButton,
+  locationCoordinates,
 }) => {
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  const renderMapModal = () => (
+    <Modal
+      visible={showMapModal}
+      animationType="slide"
+      transparent={false}
+    >
+      <SafeAreaView style={styles.mapModalContainer}>
+        <View style={styles.mapHeader}>
+          <TouchableOpacity
+            style={styles.mapCloseButton}
+            onPress={() => setShowMapModal(false)}
+          >
+            <Ionicons name="close" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.mapTitle}>Event Location</Text>
+        </View>
+        {locationCoordinates && (
+          <MapView
+            style={styles.map}
+            initialRegion={{
+              latitude: locationCoordinates.latitude,
+              longitude: locationCoordinates.longitude,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }}
+          >
+            <Marker
+              coordinate={{
+                latitude: locationCoordinates.latitude,
+                longitude: locationCoordinates.longitude,
+              }}
+              title={title}
+              description={location}
+            />
+          </MapView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+
   return (
     <View style={[styles.eventCard, style]}>
       <View>
@@ -161,10 +209,16 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
           </View>
         )}
         {location && (
-          <View style={styles.infoRow}>
+          <TouchableOpacity 
+            style={styles.infoRow}
+            onPress={() => locationCoordinates && setShowMapModal(true)}
+            disabled={!locationCoordinates}
+          >
             <Ionicons name="location-outline" size={20} color="#7F4701" style={styles.infoIcon} />
-            <Text style={styles.infoText}>{location}</Text>
-          </View>
+            <Text style={[styles.infoText, locationCoordinates && styles.clickableLocation]}>
+              {location}
+            </Text>
+          </TouchableOpacity>
         )}
         {showFullSlot && !canceled && (
           null
@@ -200,6 +254,7 @@ const UnifiedEventCard: React.FC<UnifiedEventCardProps> = ({
           </View>
         )}
       </View>
+      {renderMapModal()}
     </View>
   );
 };
@@ -408,6 +463,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 15,
     letterSpacing: 1,
+  },
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  mapCloseButton: {
+    padding: 5,
+  },
+  mapTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  map: {
+    flex: 1,
+  },
+  clickableLocation: {
+    color: '#62A0A5',
+    textDecorationLine: 'underline',
   },
 });
 

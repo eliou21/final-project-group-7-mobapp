@@ -13,6 +13,7 @@ import {
   Platform,
   ScrollView,
   Modal,
+  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HeaderBanner from '../components/HeaderBanner';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import MapView, { Marker } from 'react-native-maps';
 
 const VOLUNTEER_CATEGORIES = [
   'Logistics & Planning',
@@ -99,6 +101,19 @@ export default function ManageEventsScreen() {
   } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [manualLocation, setManualLocation] = useState('');
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedMapLocation, setSelectedMapLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 14.5995,  // Manila, Philippines latitude
+    longitude: 120.9842, // Manila, Philippines longitude
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [tempDate, setTempDate] = useState<Date | null>(null);
+  const [tempTime, setTempTime] = useState<Date | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -121,6 +136,16 @@ export default function ManageEventsScreen() {
       setSelectedCategories(event.volunteerCategories || []);
       setSelectedTags(event.tags || []);
       setMaxVolunteers(event.maxVolunteers ? String(event.maxVolunteers) : '');
+      // Set the selectedLocation if locationCoordinates exist
+      if (event.locationCoordinates) {
+        setSelectedLocation({
+          latitude: event.locationCoordinates.latitude,
+          longitude: event.locationCoordinates.longitude,
+          address: event.location
+        });
+      } else {
+        setSelectedLocation(null);
+      }
     }
   }, [route.params]);
 
@@ -140,6 +165,7 @@ export default function ManageEventsScreen() {
     setSelectedCategories([]);
     setSelectedTags([]);
     setMaxVolunteers('');
+    setSelectedLocation(null);
   };
 
   const validateForm = () => {
@@ -175,7 +201,22 @@ export default function ManageEventsScreen() {
     if (editingId) {
       // Update
       const updated = events.map((e) =>
-        e.id === editingId ? { ...e, title, date, time, description, location, coverPhoto, volunteerCategories: selectedCategories, tags: selectedTags, maxVolunteers: Number(maxVolunteers) } : e
+        e.id === editingId ? { 
+          ...e, 
+          title, 
+          date, 
+          time, 
+          description, 
+          location, 
+          coverPhoto, 
+          volunteerCategories: selectedCategories, 
+          tags: selectedTags, 
+          maxVolunteers: Number(maxVolunteers),
+          locationCoordinates: selectedLocation ? {
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude
+          } : undefined
+        } : e
       );
       await saveEvents(updated);
       Alert.alert('Success', 'Event updated!');
@@ -192,6 +233,10 @@ export default function ManageEventsScreen() {
         volunteerCategories: selectedCategories,
         tags: selectedTags,
         maxVolunteers: Number(maxVolunteers),
+        locationCoordinates: selectedLocation ? {
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude
+        } : undefined
       };
       await saveEvents([...events, newEvent]);
       Alert.alert('System Notification', 'A new event has been posted!');
@@ -211,6 +256,16 @@ export default function ManageEventsScreen() {
     setSelectedCategories(event.volunteerCategories || []);
     setSelectedTags(event.tags || []);
     setMaxVolunteers(event.maxVolunteers ? String(event.maxVolunteers) : '');
+    // Set the selectedLocation if locationCoordinates exist
+    if (event.locationCoordinates) {
+      setSelectedLocation({
+        latitude: event.locationCoordinates.latitude,
+        longitude: event.locationCoordinates.longitude,
+        address: event.location
+      });
+    } else {
+      setSelectedLocation(null);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -251,30 +306,46 @@ export default function ManageEventsScreen() {
     }
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (event.type === 'set' && selectedDate) {
-      setDate(selectedDate.toISOString().split('T')[0]);
+      setTempDate(selectedDate);
     }
   };
 
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
     if (event.type === 'set' && selectedTime) {
-      const hours = selectedTime.getHours().toString().padStart(2, '0');
-      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-      setTime(`${hours}:${minutes}`);
+      setTempTime(selectedTime);
     }
+  };
+
+  const handleDateDone = () => {
+    if (tempDate) {
+      setDate(tempDate.toISOString().split('T')[0]);
+      setTempDate(null);
+    }
+    setShowDatePicker(false);
+  };
+
+  const handleTimeDone = () => {
+    if (tempTime) {
+      const hours = tempTime.getHours().toString().padStart(2, '0');
+      const minutes = tempTime.getMinutes().toString().padStart(2, '0');
+      setTime(`${hours}:${minutes}`);
+      setTempTime(null);
+    }
+    setShowTimePicker(false);
   };
 
   const handleDatePress = () => {
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
         value: date ? new Date(date) : new Date(),
-        mode: 'date',
-        is24Hour: true,
         onChange: handleDateChange,
-        display: 'default',
+        mode: 'date',
+        display: 'default'
       });
     } else {
+      setTempDate(date ? new Date(date) : new Date());
       setShowDatePicker(true);
       setShowTimePicker(false);
     }
@@ -284,12 +355,12 @@ export default function ManageEventsScreen() {
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
         value: time ? new Date(`1970-01-01T${time}:00`) : new Date(),
-        mode: 'time',
-        is24Hour: true,
         onChange: handleTimeChange,
-        display: 'default',
+        mode: 'time',
+        display: 'default'
       });
     } else {
+      setTempTime(time ? new Date(`1970-01-01T${time}:00`) : new Date());
       setShowTimePicker(true);
       setShowDatePicker(false);
     }
@@ -352,6 +423,45 @@ export default function ManageEventsScreen() {
     setShowLocationModal(true);
   };
 
+  const handleMapPress = (e: any) => {
+    const { coordinate } = e.nativeEvent;
+    setSelectedMapLocation(coordinate);
+  };
+
+  const handleMapLocationSelect = async () => {
+    if (selectedMapLocation) {
+      try {
+        // Get address from coordinates
+        const response = await Location.reverseGeocodeAsync({
+          latitude: selectedMapLocation.latitude,
+          longitude: selectedMapLocation.longitude
+        });
+
+        if (response.length > 0) {
+          const address = response[0];
+          const formattedAddress = [
+            address.street,
+            address.city,
+            address.region,
+            address.country
+          ].filter(Boolean).join(', ');
+
+          setLocation(formattedAddress);
+          setSelectedLocation({
+            latitude: selectedMapLocation.latitude,
+            longitude: selectedMapLocation.longitude,
+            address: formattedAddress
+          });
+          setShowMapModal(false);
+          setShowLocationModal(false);
+        }
+      } catch (error) {
+        console.error('Error getting address:', error);
+        Alert.alert('Error', 'Could not get address from selected location');
+      }
+    }
+  };
+
   const renderItem = ({ item }: { item: Event }) => (
     <View style={styles.card}>
       {item.coverPhoto && (
@@ -392,6 +502,139 @@ export default function ManageEventsScreen() {
     </View>
   );
 
+  const renderLocationModal = () => (
+    <Modal
+      visible={showLocationModal}
+      animationType="slide"
+      transparent={true}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Location</Text>
+          
+          {locationError && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={24} color="#ff4444" />
+              <Text style={styles.errorText}>{locationError}</Text>
+            </View>
+          )}
+
+          <View style={styles.locationOptions}>
+            <View style={styles.optionSection}>
+              <Text style={styles.optionTitle}>Use Current Location</Text>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.primaryButton]}
+                onPress={getCurrentLocation}
+              >
+                <Ionicons name="location" size={20} color="#fff" />
+                <Text style={styles.primaryButtonText}>Get Current Location</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.optionSection}>
+              <Text style={styles.optionTitle}>Select on Map</Text>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.primaryButton]}
+                onPress={() => {
+                  setShowLocationModal(false);
+                  setShowMapModal(true);
+                }}
+              >
+                <Ionicons name="map" size={20} color="#fff" />
+                <Text style={styles.primaryButtonText}>Open Map</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.optionSection}>
+              <Text style={styles.optionTitle}>Enter Location Manually</Text>
+              <TextInput
+                style={styles.manualInput}
+                placeholder="Enter event location"
+                value={manualLocation}
+                onChangeText={setManualLocation}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.modalButton, styles.secondaryButton]}
+                onPress={handleManualLocationSubmit}
+              >
+                <Text style={styles.secondaryButtonText}>Use This Location</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              setShowLocationModal(false);
+              setLocationError(null);
+              setManualLocation('');
+            }}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderMapModal = () => (
+    <Modal
+      visible={showMapModal}
+      animationType="slide"
+      transparent={false}
+    >
+      <SafeAreaView style={styles.mapModalContainer}>
+        <View style={styles.mapHeader}>
+          <TouchableOpacity
+            style={styles.mapCloseButton}
+            onPress={() => setShowMapModal(false)}
+          >
+            <Ionicons name="close" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.mapTitle}>Select Location</Text>
+          <TouchableOpacity
+            style={styles.mapConfirmButton}
+            onPress={handleMapLocationSelect}
+            disabled={!selectedMapLocation}
+          >
+            <Text style={[
+              styles.mapConfirmText,
+              !selectedMapLocation && styles.mapConfirmTextDisabled
+            ]}>
+              Confirm
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <MapView
+          style={styles.map}
+          initialRegion={mapRegion}
+          onRegionChangeComplete={setMapRegion}
+          onPress={handleMapPress}
+        >
+          {selectedMapLocation && (
+            <Marker
+              coordinate={selectedMapLocation}
+              pinColor="#62A0A5"
+            />
+          )}
+        </MapView>
+      </SafeAreaView>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <HeaderBanner />
@@ -428,7 +671,7 @@ export default function ManageEventsScreen() {
               <Text style={styles.label}>Date</Text>
               <TouchableOpacity style={[styles.inputWithIcon, errors.date && styles.inputError]} onPress={handleDatePress}>
                 <Ionicons name="calendar" size={20} color="#62A0A5" style={styles.inputIcon} />
-                <Text style={{ color: date ? '#000' : '#888', marginLeft: 28 }}>{date ? `Date: ${date}` : 'Select Date'}</Text>
+                <Text style={{ color: date ? '#000' : '#888', marginLeft: 28 }}>{date || 'Select Date'}</Text>
               </TouchableOpacity>
               {errors.date ? <Text style={styles.errorText}>{errors.date}</Text> : null}
             </View>
@@ -436,44 +679,54 @@ export default function ManageEventsScreen() {
               <Text style={styles.label}>Time</Text>
               <TouchableOpacity style={[styles.inputWithIcon, errors.time && styles.inputError]} onPress={handleTimePress}>
                 <Ionicons name="time" size={20} color="#62A0A5" style={styles.inputIcon} />
-                <Text style={{ color: time ? '#000' : '#888', marginLeft: 28 }}>{time ? `Time: ${time}` : 'Select Time'}</Text>
+                <Text style={{ color: time ? '#000' : '#888', marginLeft: 28 }}>{time || 'Select Time'}</Text>
               </TouchableOpacity>
               {errors.time ? <Text style={styles.errorText}>{errors.time}</Text> : null}
             </View>
           </View>
           {Platform.OS === 'ios' && (
-          <>
-            <Modal visible={showDatePicker} transparent animationType="slide">
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  <DateTimePicker
-                    value={date ? new Date(date) : new Date()}
-                    mode="date"
-                    display="spinner"
-                    onChange={handleDateChange}
-                    minimumDate={new Date()}
-                  />
-                  <Button title="Done" onPress={() => setShowDatePicker(false)} />
+            <>
+              <Modal visible={showDatePicker} transparent animationType="slide">
+                <View style={styles.modalContainer}>
+                  <View style={[styles.modalContent, { backgroundColor: '#000000' }]}>
+                    <DateTimePicker
+                      value={tempDate || new Date()}
+                      mode="date"
+                      display="spinner"
+                      onChange={handleDateChange}
+                      minimumDate={new Date()}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.button, { backgroundColor: '#62A0A5' }]} 
+                      onPress={handleDateDone}
+                    >
+                      <Text style={styles.buttonText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </Modal>
+              </Modal>
 
-            <Modal visible={showTimePicker} transparent animationType="slide">
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  <DateTimePicker
-                    value={time ? new Date(`1970-01-01T${time}:00`) : new Date()}
-                    mode="time"
-                    display="spinner"
-                    onChange={handleTimeChange}
-                    minimumDate={date && new Date(date).toDateString() === new Date().toDateString() ? new Date() : new Date('1970-01-01T00:00:00')}
-                  />
-                  <Button title="Done" onPress={() => setShowTimePicker(false)} />
+              <Modal visible={showTimePicker} transparent animationType="slide">
+                <View style={styles.modalContainer}>
+                  <View style={[styles.modalContent, { backgroundColor: '#000000' }]}>
+                    <DateTimePicker
+                      value={tempTime || new Date()}
+                      mode="time"
+                      display="spinner"
+                      onChange={handleTimeChange}
+                      minimumDate={date && new Date(date).toDateString() === new Date().toDateString() ? new Date() : new Date('1970-01-01T00:00:00')}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.button, { backgroundColor: '#62A0A5' }]} 
+                      onPress={handleTimeDone}
+                    >
+                      <Text style={styles.buttonText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </Modal>
-          </>
-        )}
+              </Modal>
+            </>
+          )}
           <Text style={styles.label}>Volunteer Categories</Text>
           <TouchableOpacity 
             style={[styles.categoryPickerButton, errors.categories && styles.inputError]} 
@@ -493,15 +746,15 @@ export default function ManageEventsScreen() {
             animationType="slide"
           >
             <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
+              <View style={[styles.modalContent, { backgroundColor: '#7BB1B7' }]}>
                 <Text style={styles.modalTitle}>Select Volunteer Categories</Text>
-                <ScrollView style={styles.pickerContainer} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                   {VOLUNTEER_CATEGORIES.map((category) => (
                     <TouchableOpacity
                       key={category}
                       style={[
                         styles.categoryItem,
-                        selectedCategories.includes(category) && styles.selectedCategory
+                        selectedCategories.includes(category) && styles.selectedCategoryItem
                       ]}
                       onPress={() => {
                         if (selectedCategories.includes(category)) {
@@ -512,7 +765,7 @@ export default function ManageEventsScreen() {
                       }}
                     >
                       <Text style={[
-                        styles.categoryItemText,
+                        styles.categoryText,
                         selectedCategories.includes(category) && styles.selectedCategoryText
                       ]}>
                         {category}
@@ -520,7 +773,20 @@ export default function ManageEventsScreen() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                <Button title="Done" onPress={() => setShowCategoryPicker(false)} />
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+                  <TouchableOpacity
+                    style={[styles.cancelButtonCustom, { flex: 1 }]}
+                    onPress={() => setShowCategoryPicker(false)}
+                  >
+                    <Text style={styles.cancelButtonTextCustom}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.changeButtonCustom, { flex: 1 }]}
+                    onPress={() => setShowCategoryPicker(false)}
+                  >
+                    <Text style={styles.changeButtonTextCustom}>Done</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </Modal>
@@ -537,72 +803,7 @@ export default function ManageEventsScreen() {
           </TouchableOpacity>
           {errors.location ? <Text style={styles.errorText}>{errors.location}</Text> : null}
 
-          {/* Location Modal */}
-          <Modal
-            visible={showLocationModal}
-            transparent={true}
-            animationType="slide"
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Select Location</Text>
-                
-                {locationError && (
-                  <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={24} color="#ff4444" />
-                    <Text style={styles.errorText}>{locationError}</Text>
-                  </View>
-                )}
-
-                <View style={styles.locationOptions}>
-                  <View style={styles.optionSection}>
-                    <Text style={styles.optionTitle}>Use Current Location</Text>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.primaryButton]}
-                      onPress={getCurrentLocation}
-                    >
-                      <Ionicons name="location" size={20} color="#fff" />
-                      <Text style={styles.primaryButtonText}>Get Current Location</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>OR</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
-
-                  <View style={styles.optionSection}>
-                    <Text style={styles.optionTitle}>Enter Location Manually</Text>
-                    <TextInput
-                      style={styles.manualInput}
-                      placeholder="Enter event location"
-                      value={manualLocation}
-                      onChangeText={setManualLocation}
-                      multiline
-                    />
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.secondaryButton]}
-                      onPress={handleManualLocationSubmit}
-                    >
-                      <Text style={styles.secondaryButtonText}>Use This Location</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowLocationModal(false);
-                    setLocationError(null);
-                    setManualLocation('');
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
+          {renderLocationModal()}
 
           <Text style={styles.label}>Description</Text>
           <TextInput
@@ -649,6 +850,7 @@ export default function ManageEventsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      {renderMapModal()}
     </SafeAreaView>
   );
 }
@@ -765,18 +967,18 @@ const styles = StyleSheet.create({
 
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
 
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
+    backgroundColor: '#FFF1C7',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#7F4701',
   },
 
   modalTitle: {
@@ -819,13 +1021,13 @@ const styles = StyleSheet.create({
   },
 
   secondaryButton: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#62A0A5',
   },
 
   secondaryButtonText: {
-    color: '#666',
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
-    fontWeight: '500',
   },
 
   errorContainer: {
@@ -857,21 +1059,24 @@ const styles = StyleSheet.create({
   },
 
   categoryItem: {
-    padding: 15,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#FFF1C7',
+    width: '100%',
   },
 
-  selectedCategory: {
-    backgroundColor: '#62A0A5',
+  categoryText: {
+    fontSize: 16,
+    color: '#FFF1C7',
   },
 
-  categoryItemText: {
-    color: '#7F4701',
+  selectedCategoryItem: {
+    backgroundColor: 'rgb(113, 165, 174)',
+    borderRadius: 10,
   },
 
   selectedCategoryText: {
-    color: '#FFF1C7',
+    color: '#fff',
     fontWeight: 'bold',
   },
 
@@ -885,12 +1090,6 @@ const styles = StyleSheet.create({
   categoriesTitle: {
     fontWeight: 'bold',
     marginBottom: 5,
-  },
-
-  categoryText: {
-    marginLeft: 10,
-    marginBottom: 3,
-    color: '#FFF1C7',
   },
 
   sectionLabel: {
@@ -1132,5 +1331,95 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '500',
+  },
+
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+
+  mapCloseButton: {
+    padding: 5,
+  },
+
+  mapTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+
+  mapConfirmButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#62A0A5',
+  },
+
+  mapConfirmText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  mapConfirmTextDisabled: {
+    color: '#ccc',
+  },
+
+  map: {
+    flex: 1,
+  },
+
+  button: {
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  cancelButtonCustom: {
+    backgroundColor: '#ff6b6b',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+
+  cancelButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  changeButtonCustom: {
+    backgroundColor: '#7AA47D',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginTop: 0,
+  },
+
+  changeButtonTextCustom: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

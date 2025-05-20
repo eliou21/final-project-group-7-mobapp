@@ -70,7 +70,7 @@ export default function MyRegisteredEventsScreen() {
   const [editEvent, setEditEvent] = useState<Event | null>(null);
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [pending, setPending] = useState<PendingVolunteer[]>([]);
-  const [sortStatus, setSortStatus] = useState<'all' | 'active' | 'pending' | 'removed' | 'cancelled'>('all');
+  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'removed' | 'cancelled'>('active');
   const [editPending, setEditPending] = useState<{ pendingId: string; category: string; categories: string[] } | null>(null);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [tabAnim] = useState(new Animated.Value(0));
@@ -85,10 +85,11 @@ export default function MyRegisteredEventsScreen() {
   // Animate tab indicator on tab change
   useEffect(() => {
     let idx = 0;
-    switch (sortStatus) {
-      case 'all': idx = 0; break;
-      case 'active': idx = 1; break;
-      case 'pending': idx = 2; break;
+    switch (activeTab) {
+      case 'active': idx = 0; break;
+      case 'pending': idx = 1; break;
+      case 'removed': idx = 2; break;
+      case 'cancelled': idx = 3; break;
     }
     Animated.timing(tabAnim, {
       toValue: idx,
@@ -96,7 +97,7 @@ export default function MyRegisteredEventsScreen() {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: false,
     }).start();
-  }, [sortStatus]);
+  }, [activeTab]);
 
   const loadData = async () => {
     if (!user) return;
@@ -365,8 +366,10 @@ export default function MyRegisteredEventsScreen() {
         pendingId: p.id,
       };
     });
-    if (sortStatus === 'active') return activeEvents;
-    if (sortStatus === 'pending') return pendingEvents;
+    if (activeTab === 'active') return activeEvents;
+    if (activeTab === 'pending') return pendingEvents;
+    if (activeTab === 'removed') return removedEvents;
+    if (activeTab === 'cancelled') return cancelledEvents;
     return [...activeEvents, ...pendingEvents];
   };
 
@@ -379,43 +382,36 @@ export default function MyRegisteredEventsScreen() {
       </View>
       <View style={styles.bannerDivider} />
       <View style={styles.container}>
-        {/* Animated Tab Bar */}
         <View style={styles.tabBar}>
-          <Animated.View
-            style={[
-              styles.tabIndicator,
-              {
-                left: tabAnim.interpolate({
-                  inputRange: [0, 1, 2],
-                  outputRange: ['8%', '40%', '72%'],
-                }),
-                width: '24%',
-              },
-            ]}
-          />
           <TouchableOpacity
-            style={[styles.tab, sortStatus === 'all' && styles.activeTab]}
-            onPress={() => setSortStatus('all')}
+            style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+            onPress={() => setActiveTab('active')}
           >
-            <Text style={[styles.tabText, sortStatus === 'all' && styles.activeTabText]}>All</Text>
+            <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Active</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, sortStatus === 'active' && styles.activeTab]}
-            onPress={() => setSortStatus('active')}
+            style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
+            onPress={() => setActiveTab('pending')}
           >
-            <Text style={[styles.tabText, sortStatus === 'active' && styles.activeTabText]}>Active</Text>
+            <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>Pending</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, sortStatus === 'pending' && styles.activeTab]}
-            onPress={() => setSortStatus('pending')}
+            style={[styles.tab, activeTab === 'removed' && styles.activeTab]}
+            onPress={() => setActiveTab('removed')}
           >
-            <Text style={[styles.tabText, sortStatus === 'pending' && styles.activeTabText]}>Pending</Text>
+            <Text style={[styles.tabText, activeTab === 'removed' && styles.activeTabText]}>Removed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'cancelled' && styles.activeTab]}
+            onPress={() => setActiveTab('cancelled')}
+          >
+            <Text style={[styles.tabText, activeTab === 'cancelled' && styles.activeTabText]}>Cancelled</Text>
           </TouchableOpacity>
         </View>
         {getDisplayEvents().length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>You have no {sortStatus === 'all' ? '' : sortStatus} events.</Text>
+            <Text style={styles.emptyText}>You have no {activeTab} events.</Text>
           </View>
         ) : (
           <FlatList
@@ -586,15 +582,6 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#fff',
   },
-  tabIndicator: {
-    position: 'absolute',
-    top: 4,
-    width: '16%',
-    height: 40,
-    backgroundColor: '#FEBD6B',
-    borderRadius: 20,
-    zIndex: 0,
-  },
   card: {
     backgroundColor: 'rgb(255, 252, 236)',
     borderRadius: 25,
@@ -706,7 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusBadgeText: {
-    color: '#7F4701',
+    color: '#ff6b6b',
     fontWeight: 'bold',
     fontSize: 14,
   },
