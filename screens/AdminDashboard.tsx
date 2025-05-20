@@ -26,6 +26,10 @@ type Event = {
   time: string;
   description: string;
   location: string;
+  locationCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   coverPhoto?: string;
   maxVolunteers?: number;
   currentVolunteers?: number;
@@ -177,6 +181,7 @@ export default function AdminDashboard() {
         onCancelPress={() => !item.canceled && confirmCancelEvent(item.id)}
         cancelDisabled={item.canceled}
         showFullSlot={!item.canceled && (item.currentVolunteers ?? 0) >= (item.maxVolunteers ?? 0)}
+        locationCoordinates={item.locationCoordinates}
       />
       <View style={styles.actionButtons}>
         <TouchableOpacity
