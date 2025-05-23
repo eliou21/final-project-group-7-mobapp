@@ -307,14 +307,50 @@ export default function ManageEventsScreen() {
   };
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (event.type === 'set' && selectedDate) {
-      setTempDate(selectedDate);
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (event.type === 'set' && selectedDate) {
+        setDate(selectedDate.toISOString().split('T')[0]);
+      }
+    } else {
+      if (event.type === 'set' && selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
   };
 
   const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
-    if (event.type === 'set' && selectedTime) {
-      setTempTime(selectedTime);
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+      if (event.type === 'set' && selectedTime) {
+        const hours = selectedTime.getHours().toString().padStart(2, '0');
+        const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+        setTime(`${hours}:${minutes}`);
+      }
+    } else {
+      if (event.type === 'set' && selectedTime) {
+        setTempTime(selectedTime);
+      }
+    }
+  };
+
+  const handleDatePress = () => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(true);
+    } else {
+      setTempDate(date ? new Date(date) : new Date());
+      setShowDatePicker(true);
+      setShowTimePicker(false);
+    }
+  };
+
+  const handleTimePress = () => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(true);
+    } else {
+      setTempTime(time ? new Date(`1970-01-01T${time}:00`) : new Date());
+      setShowTimePicker(true);
+      setShowDatePicker(false);
     }
   };
 
@@ -334,36 +370,6 @@ export default function ManageEventsScreen() {
       setTempTime(null);
     }
     setShowTimePicker(false);
-  };
-
-  const handleDatePress = () => {
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: date ? new Date(date) : new Date(),
-        onChange: handleDateChange,
-        mode: 'date',
-        display: 'default'
-      });
-    } else {
-      setTempDate(date ? new Date(date) : new Date());
-      setShowDatePicker(true);
-      setShowTimePicker(false);
-    }
-  };
-
-  const handleTimePress = () => {
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: time ? new Date(`1970-01-01T${time}:00`) : new Date(),
-        onChange: handleTimeChange,
-        mode: 'time',
-        display: 'default'
-      });
-    } else {
-      setTempTime(time ? new Date(`1970-01-01T${time}:00`) : new Date());
-      setShowTimePicker(true);
-      setShowDatePicker(false);
-    }
   };
 
   const handleCancelEvent = async (id: string) => {
@@ -674,6 +680,15 @@ export default function ManageEventsScreen() {
                 <Text style={{ color: date ? '#000' : '#888', marginLeft: 28 }}>{date || 'Select Date'}</Text>
               </TouchableOpacity>
               {errors.date ? <Text style={styles.errorText}>{errors.date}</Text> : null}
+              {Platform.OS === 'android' && showDatePicker && (
+                <DateTimePicker
+                  value={date ? new Date(date) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                />
+              )}
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.label}>Time</Text>
@@ -682,51 +697,16 @@ export default function ManageEventsScreen() {
                 <Text style={{ color: time ? '#000' : '#888', marginLeft: 28 }}>{time || 'Select Time'}</Text>
               </TouchableOpacity>
               {errors.time ? <Text style={styles.errorText}>{errors.time}</Text> : null}
+              {Platform.OS === 'android' && showTimePicker && (
+                <DateTimePicker
+                  value={time ? new Date(`1970-01-01T${time}:00`) : new Date()}
+                  mode="time"
+                  display="default"
+                  onChange={handleTimeChange}
+                />
+              )}
             </View>
           </View>
-          {Platform.OS === 'ios' && (
-            <>
-              <Modal visible={showDatePicker} transparent animationType="slide">
-                <View style={styles.modalContainer}>
-                  <View style={[styles.modalContent, { backgroundColor: '#000000' }]}>
-                    <DateTimePicker
-                      value={tempDate || new Date()}
-                      mode="date"
-                      display="spinner"
-                      onChange={handleDateChange}
-                      minimumDate={new Date()}
-                    />
-                    <TouchableOpacity 
-                      style={[styles.button, { backgroundColor: '#62A0A5' }]} 
-                      onPress={handleDateDone}
-                    >
-                      <Text style={styles.buttonText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Modal>
-
-              <Modal visible={showTimePicker} transparent animationType="slide">
-                <View style={styles.modalContainer}>
-                  <View style={[styles.modalContent, { backgroundColor: '#000000' }]}>
-                    <DateTimePicker
-                      value={tempTime || new Date()}
-                      mode="time"
-                      display="spinner"
-                      onChange={handleTimeChange}
-                      minimumDate={date && new Date(date).toDateString() === new Date().toDateString() ? new Date() : new Date('1970-01-01T00:00:00')}
-                    />
-                    <TouchableOpacity 
-                      style={[styles.button, { backgroundColor: '#62A0A5' }]} 
-                      onPress={handleTimeDone}
-                    >
-                      <Text style={styles.buttonText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Modal>
-            </>
-          )}
           <Text style={styles.label}>Volunteer Categories</Text>
           <TouchableOpacity 
             style={[styles.categoryPickerButton, errors.categories && styles.inputError]} 
